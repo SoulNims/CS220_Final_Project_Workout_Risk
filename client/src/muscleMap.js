@@ -38,10 +38,9 @@ export function apiScoreToLoad(score) {
 export function riskScoresToLoad(scores) {
   const load = Object.fromEntries(Object.keys(MUSCLE_LABEL).map((key) => [key, 0]))
   scores.forEach((score) => {
-    const frontendMuscles = API_TO_FRONTEND_MUSCLES[score.muscle_group] || []
-    frontendMuscles.forEach((muscle) => {
-      load[muscle] = apiScoreToLoad(score.score)
-    })
+    if (score.group in load) {
+      load[score.group] = apiScoreToLoad(score.score)
+    }
   })
   return load
 }
@@ -50,30 +49,17 @@ export function frontendToApiMuscle(group) {
   return FRONTEND_TO_API_MUSCLE[group] || 'core'
 }
 
-export function apiWorkoutToSession(workout) {
-  const frontendGroups = API_TO_FRONTEND_MUSCLES[workout.muscle_group] || [workout.muscle_group]
-  const primaryGroup = frontendGroups[0]
-  const rpe = Math.max(1, Math.min(10, Math.round(Number(workout.intensity || 0) / 10)))
-  const sets = Math.max(1, Number(workout.sets || 1))
+export function apiWorkoutToSession(session) {
   return {
-    id: workout.id,
-    backendIds: [workout.id],
-    date: new Date(workout.logged_at).toISOString().slice(0, 10),
-    name: `${MUSCLE_LABEL[primaryGroup] || workout.muscle_group} workout`,
-    groups: frontendGroups,
-    rpe,
-    duration: 45,
-    soreness: Math.max(1, Math.min(10, rpe - 2)),
-    entries: [
-      {
-        group: primaryGroup,
-        fields: ['reps'],
-        setRows: Array.from({ length: sets }, () => ({
-          rpe,
-          reps: String(workout.reps),
-        })),
-      },
-    ],
+    id: session.id,
+    backendIds: [session.id],
+    date: session.date,
+    name: session.name,
+    groups: session.groups,
+    rpe: session.rpe,
+    duration: session.duration,
+    soreness: session.soreness ?? 4,
+    entries: session.entries || [],
   }
 }
 

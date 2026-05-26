@@ -13,7 +13,11 @@ async function request(path, options = {}) {
     let message = `Request failed with status ${response.status}`
     try {
       const body = await response.json()
-      message = body.detail || message
+      if (Array.isArray(body.detail)) {
+        message = body.detail.map(e => e.msg || JSON.stringify(e)).join('; ')
+      } else {
+        message = body.detail || message
+      }
     } catch {
       // Keep the status-based message when the response is not JSON.
     }
@@ -29,6 +33,11 @@ export const api = {
   createWorkout: (username, payload) =>
     request(`/workouts/${username}`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateWorkout: (username, sessionId, payload) =>
+    request(`/workouts/${username}/${sessionId}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     }),
   getWorkouts: (username) => request(`/workouts/${username}`),

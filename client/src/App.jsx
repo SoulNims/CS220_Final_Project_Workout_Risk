@@ -9,7 +9,7 @@ import AddWorkoutModal from './components/AddWorkoutModal'
 import SettingsModal from './components/SettingsModal'
 import { TREND } from './data'
 import { api } from './services/api'
-import { apiWorkoutToSession, riskScoresToLoad, sessionEntryToWorkoutPayload } from './muscleMap'
+import { apiWorkoutToSession, riskScoresToLoad } from './muscleMap'
 
 export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('irp_username') || '')
@@ -96,15 +96,20 @@ export default function App() {
     if (!username) return
     setStatus({ loading: true, error: '' })
     try {
-      if (isEdit && editing?.backendIds?.length) {
-        await Promise.all(editing.backendIds.map((id) => api.deleteWorkout(username, id)))
+      const payload = {
+        date: s.date,
+        name: s.name,
+        groups: s.groups,
+        rpe: s.rpe,
+        duration: s.duration,
+        soreness: s.soreness ?? 4,
+        entries: s.entries?.length ? s.entries : undefined,
       }
-      const entries = s.entries?.length
-        ? s.entries
-        : s.groups.map((group) => ({ group, setRows: [{ rpe: s.rpe }], fields: [] }))
-      await Promise.all(entries.map((entry) =>
-        api.createWorkout(username, sessionEntryToWorkoutPayload(entry, s))
-      ))
+      if (isEdit && editing?.id) {
+        await api.updateWorkout(username, editing.id, payload)
+      } else {
+        await api.createWorkout(username, payload)
+      }
       closeModal()
       await refreshServerState(username)
     } catch (error) {
