@@ -25,6 +25,9 @@ ENV/
 node_modules/
 client/dist/
 
+# ── Project-specific ─────────────────────────────────────────────────────────
+CLAUDE.MD
+
 # ── OS & Editor ──────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
