@@ -7,7 +7,9 @@ import History from './components/History'
 import Insights from './components/Insights'
 import AddWorkoutModal from './components/AddWorkoutModal'
 import SettingsModal from './components/SettingsModal'
-import { INITIAL_LOAD, SAMPLE_SESSIONS, TREND } from './data'
+import { TREND } from './data'
+import { api } from './services/api'
+import { apiWorkoutToSession, riskScoresToLoad, sessionEntryToWorkoutPayload } from './muscleMap'
 
 export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem('irp_username') || '')
@@ -16,8 +18,10 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('irp_theme') || 'light')
   const [showSettings, setShowSettings] = useState(false)
   const [page, setPage] = useState('dashboard')
-  const [load, setLoad] = useState(INITIAL_LOAD)
-  const [sessions, setSessions] = useState(SAMPLE_SESSIONS)
+  const [load, setLoad] = useState({})
+  const [sessions, setSessions] = useState([])
+  const [aiCoach, setAiCoach] = useState({ analysis: null, plan: null, report: null })
+  const [status, setStatus] = useState({ loading: false, error: '' })
   const [selectedMuscle, setSelectedMuscle] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -27,9 +31,43 @@ export default function App() {
     localStorage.setItem('irp_theme', theme)
   }, [theme])
 
-  function handleLogin(name) {
-    localStorage.setItem('irp_username', name)
-    setUsername(name)
+  useEffect(() => {
+    if (!username) return
+    refreshServerState(username)
+  }, [username])
+
+  async function refreshServerState(name = username) {
+    if (!name) return
+    setStatus({ loading: true, error: '' })
+    try {
+      const [workouts, riskScores, analysis, plan, report] = await Promise.all([
+        api.getWorkouts(name),
+        api.getRiskScores(name),
+        api.getAiAnalysis(name),
+        api.getAiPlan(name),
+        api.getAiReport(name),
+      ])
+      setSessions(workouts.map(apiWorkoutToSession))
+      setLoad(riskScoresToLoad(riskScores))
+      setAiCoach({ analysis, plan, report })
+      setStatus({ loading: false, error: '' })
+    } catch (error) {
+      setStatus({ loading: false, error: error.message || 'Unable to reach the API server' })
+    }
+  }
+
+  async function handleLogin(name) {
+    const cleanName = name.trim()
+    if (!cleanName) return
+    setStatus({ loading: true, error: '' })
+    try {
+      await api.getUser(cleanName)
+      localStorage.setItem('irp_username', cleanName)
+      setUsername(cleanName)
+      setStatus({ loading: false, error: '' })
+    } catch (error) {
+      setStatus({ loading: false, error: error.message || 'Unable to reach the API server' })
+    }
   }
 
   function handleSaveSettings(g, a) {
@@ -44,6 +82,10 @@ export default function App() {
     setUsername('')
     setGender('')
     setAge(null)
+    setLoad({})
+    setSessions([])
+    setAiCoach({ analysis: null, plan: null, report: null })
+    setStatus({ loading: false, error: '' })
     setPage('dashboard')
     setShowSettings(false)
   }
@@ -56,38 +98,41 @@ export default function App() {
   const onEditWorkout = (s) => { setEditing(s); setShowAdd(true) }
   const closeModal = () => { setShowAdd(false); setEditing(null) }
 
-  function applyLoad(s, delta) {
-    setLoad(prev => {
-      const next = { ...prev }
-      const bump = 0.3 + (s.rpe / 10) * 0.6
-      s.groups.forEach(g => {
-        next[g] = Math.max(0, Math.min(4, (next[g] || 0) + delta * bump))
-      })
-      return next
-    })
-  }
-
-  function onSaveWorkout(s, isEdit) {
-    if (isEdit) {
-      const old = sessions.find(x => x.id === s.id)
-      setSessions(prev => prev.map(x => x.id === s.id ? s : x))
-      if (old) applyLoad(old, -1)
-      applyLoad(s, +1)
-    } else {
-      setSessions(prev => [s, ...prev])
-      applyLoad(s, +1)
+  async function onSaveWorkout(s, isEdit) {
+    if (!username) return
+    setStatus({ loading: true, error: '' })
+    try {
+      if (isEdit && editing?.backendIds?.length) {
+        await Promise.all(editing.backendIds.map((id) => api.deleteWorkout(username, id)))
+      }
+      const entries = s.entries?.length
+        ? s.entries
+        : s.groups.map((group) => ({ group, setRows: [{ rpe: s.rpe }], fields: [] }))
+      await Promise.all(entries.map((entry) =>
+        api.createWorkout(username, sessionEntryToWorkoutPayload(entry, s))
+      ))
+      closeModal()
+      await refreshServerState(username)
+    } catch (error) {
+      setStatus({ loading: false, error: error.message || 'Unable to save workout' })
     }
-    closeModal()
   }
 
-  function onDelete(id) {
-    const old = sessions.find(x => x.id === id)
-    setSessions(prev => prev.filter(s => s.id !== id))
-    if (old) applyLoad(old, -1)
+  async function onDelete(id) {
+    if (!username) return
+    const session = sessions.find(x => x.id === id)
+    const ids = session?.backendIds?.length ? session.backendIds : [id]
+    setStatus({ loading: true, error: '' })
+    try {
+      await Promise.all(ids.map((backendId) => api.deleteWorkout(username, backendId)))
+      await refreshServerState(username)
+    } catch (error) {
+      setStatus({ loading: false, error: error.message || 'Unable to delete workout' })
+    }
   }
 
   if (!username) {
-    return <LoginPage onLogin={handleLogin} />
+    return <LoginPage onLogin={handleLogin} error={status.error} loading={status.loading} />
   }
 
 
@@ -106,6 +151,11 @@ export default function App() {
 
       <main className="main">
         <div className="main-inner">
+          {status.error && (
+            <div className="card" style={{ marginBottom: 16, borderColor: 'var(--risk-crit)', color: 'var(--risk-crit)' }}>
+              {status.error}
+            </div>
+          )}
           {page === 'dashboard' && (
             <Dashboard
               load={load}
@@ -127,7 +177,15 @@ export default function App() {
             />
           )}
           {page === 'history' && <History sessions={sessions} trend={TREND} />}
-          {page === 'insights' && <Insights load={load} sessions={sessions} trend={TREND} />}
+          {page === 'insights' && (
+            <Insights
+              load={load}
+              sessions={sessions}
+              trend={TREND}
+              aiCoach={aiCoach}
+              loading={status.loading}
+            />
+          )}
         </div>
       </main>
 

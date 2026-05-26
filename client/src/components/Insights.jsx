@@ -33,8 +33,11 @@ function Recommendation({ priority, title, body, tags }) {
   )
 }
 
-export default function Insights({ load, sessions, trend }) {
+export default function Insights({ load, sessions, trend, aiCoach, loading }) {
   const score = aggregateScore(load)
+  const analysis = aiCoach?.analysis
+  const plan = aiCoach?.plan
+  const report = aiCoach?.report
 
   const muscleLoads = Object.entries(load)
     .filter(([, v]) => v > 0)
@@ -60,22 +63,67 @@ export default function Insights({ load, sessions, trend }) {
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500, marginBottom: 6 }}>
-              Coach summary
+              AI coach summary {report?.source ? `· ${report.source === 'gemini' ? 'Gemini' : 'demo mode'}` : ''}
             </div>
             <div style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--text)', marginBottom: 10 }}>
-              You've stacked two climbing sessions in three days. Forearm load is at
-              <strong style={{ color: 'var(--risk-crit)' }}> 3.9</strong>, well into the critical zone
-              (anything above 3.5 doubles tendon injury risk in studies of grip athletes).
-              Pair that with yesterday's heavy push day and your chest is also elevated.
+              {loading
+                ? 'Loading AI coach guidance from the FastAPI backend...'
+                : report?.summary || 'Log workouts to generate a coach-style training health report.'}
             </div>
+            {report?.trend && (
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-soft)', marginBottom: 10 }}>
+                {report.trend}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn">📅 Suggest rest day Friday</button>
-              <button className="btn">🧘 Add forearm mobility</button>
-              <button className="btn ghost">Dismiss</button>
+              <button className="btn">📅 Review 7-day plan</button>
+              <button className="btn">🧠 Analyze patterns</button>
+              <button className="btn ghost">Refresh from API</button>
             </div>
           </div>
         </div>
       </div>
+
+      {(analysis || plan || report) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+          <div className="card">
+            <div className="card-title">
+              <span>Smart workout analyzer</span>
+              <span className="badge">{analysis?.source || 'demo'}</span>
+            </div>
+            {(analysis?.patterns || []).slice(0, 4).map((pattern, index) => (
+              <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-soft)', lineHeight: 1.45 }}>
+                {pattern}
+              </div>
+            ))}
+            {analysis?.focus_area && (
+              <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 6, background: 'var(--bg-sidebar)', fontSize: 13, color: 'var(--text)' }}>
+                <strong>Focus:</strong> {analysis.focus_area}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-title">
+              <span>7-day plan preview</span>
+              <span className="badge">{plan?.source || 'demo'}</span>
+            </div>
+            {(plan?.plan || []).slice(0, 4).map((day) => (
+              <div key={day.day} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text)' }}>{day.day} · {day.focus}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {day.exercises?.slice(0, 3).join(', ')}
+                </div>
+              </div>
+            ))}
+            {report?.disclaimer && (
+              <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                {report.disclaimer}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, marginBottom: 20 }}>
         <div className="card">
