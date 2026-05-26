@@ -41,10 +41,15 @@ function cacheKey(username) {
   return `irp_ai_coach_${username}`
 }
 
+function hasGeminiSource(data) {
+  return [data?.analysis, data?.plan, data?.report].some(item => item?.source === 'gemini')
+}
+
 function readCachedCoach(username) {
   try {
     const raw = sessionStorage.getItem(cacheKey(username))
-    return raw ? JSON.parse(raw) : null
+    const data = raw ? JSON.parse(raw) : null
+    return hasGeminiSource(data) ? data : null
   } catch {
     return null
   }
@@ -93,8 +98,12 @@ export default function Insights({ load, sessions, trend, username }) {
         cachedAt: new Date().toISOString(),
       }
       setAiCoach(next)
-      writeCachedCoach(username, next)
-      const usedGemini = [analysisResult, planResult, reportResult].some(item => item?.source === 'gemini')
+      const usedGemini = hasGeminiSource(next)
+      if (usedGemini) {
+        writeCachedCoach(username, next)
+      } else {
+        sessionStorage.removeItem(cacheKey(username))
+      }
       setAiStatus(usedGemini ? 'gemini' : 'demo')
     } catch (error) {
       setAiStatus('error')
@@ -174,7 +183,7 @@ export default function Insights({ load, sessions, trend, username }) {
               <button className="btn ghost" onClick={() => {
                 sessionStorage.removeItem(cacheKey(username))
                 setAiCoach(emptyCoach)
-                setAiStatus('idle')
+                loadAiCoach({ force: true })
               }}>
                 Clear cache
               </button>

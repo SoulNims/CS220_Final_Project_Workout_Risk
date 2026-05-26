@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
     ports:
       - "8000:8000"
     volumes:
