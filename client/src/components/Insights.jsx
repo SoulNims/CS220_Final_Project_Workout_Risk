@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { IconChev, IconSparkle, IconActivity } from '../icons'
 import { aggregateScore, RISK_COLORS, MUSCLE_LABEL, loadToRisk } from '../data'
+import { api } from '../services/api'
 
 function BreakdownRow({ label, value, contribution, note }) {
   const pos = contribution >= 0
@@ -33,8 +35,105 @@ function Recommendation({ priority, title, body, tags }) {
   )
 }
 
-export default function Insights({ load, sessions, trend }) {
+const emptyCoach = { analysis: null, plan: null, report: null }
+
+function cacheKey(username) {
+  return `irp_ai_coach_${username}`
+}
+
+function hasGeminiSource(data) {
+  return [data?.analysis, data?.plan, data?.report].some(item => item?.source === 'gemini')
+}
+
+function readCachedCoach(username) {
+  try {
+    const raw = sessionStorage.getItem(cacheKey(username))
+    const data = raw ? JSON.parse(raw) : null
+    return hasGeminiSource(data) ? data : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCoach(username, data) {
+  try {
+    sessionStorage.setItem(cacheKey(username), JSON.stringify(data))
+  } catch {
+    // Cache is an optimization; ignore storage failures.
+  }
+}
+
+export default function Insights({ load, sessions, trend, username }) {
   const score = aggregateScore(load)
+  const [aiCoach, setAiCoach] = useState(() => readCachedCoach(username) || emptyCoach)
+  const [aiStatus, setAiStatus] = useState(() => readCachedCoach(username) ? 'cached' : 'idle')
+  const [aiError, setAiError] = useState('')
+  const analysis = aiCoach?.analysis
+  const plan = aiCoach?.plan
+  const report = aiCoach?.report
+  const isLoadingAi = aiStatus === 'loading'
+
+  async function loadAiCoach({ force = false } = {}) {
+    if (!username) return
+    const cached = readCachedCoach(username)
+    if (cached && !force) {
+      setAiCoach(cached)
+      setAiStatus('cached')
+      setAiError('')
+      return
+    }
+
+    setAiStatus('loading')
+    setAiError('')
+    try {
+      const [analysisResult, planResult, reportResult] = await Promise.all([
+        api.getAiAnalysis(username),
+        api.getAiPlan(username),
+        api.getAiReport(username),
+      ])
+      const next = {
+        analysis: analysisResult,
+        plan: planResult,
+        report: reportResult,
+        cachedAt: new Date().toISOString(),
+      }
+      setAiCoach(next)
+      const usedGemini = hasGeminiSource(next)
+      if (usedGemini) {
+        writeCachedCoach(username, next)
+      } else {
+        sessionStorage.removeItem(cacheKey(username))
+      }
+      setAiStatus(usedGemini ? 'gemini' : 'demo')
+    } catch (error) {
+      setAiStatus('error')
+      setAiError(error.message || 'Unable to load AI coach guidance.')
+    }
+  }
+
+  useEffect(() => {
+    setAiCoach(readCachedCoach(username) || emptyCoach)
+    setAiStatus(readCachedCoach(username) ? 'cached' : 'idle')
+    setAiError('')
+    loadAiCoach()
+  }, [username])
+
+  const sourceLabel = report?.source === 'gemini'
+    ? 'Gemini'
+    : report?.source === 'demo'
+      ? 'demo mode'
+      : aiStatus === 'cached'
+        ? 'cached'
+        : ''
+
+  const statusCopy = {
+    idle: 'AI coach will load when this page opens.',
+    loading: 'Loading AI coach guidance from Gemini. This uses your API quota once per session.',
+    cached: 'Showing cached AI coach guidance for this session.',
+    gemini: 'Gemini-backed response loaded.',
+    demo: 'Demo mode shown because Gemini is unavailable or rate-limited.',
+    error: aiError,
+  }[aiStatus]
 
   const muscleLoads = Object.entries(load)
     .filter(([, v]) => v > 0)
@@ -60,22 +159,79 @@ export default function Insights({ load, sessions, trend }) {
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500, marginBottom: 6 }}>
-              Coach summary
+              AI coach summary {sourceLabel ? `· ${sourceLabel}` : ''}
             </div>
+            {statusCopy && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                {statusCopy}
+              </div>
+            )}
             <div style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--text)', marginBottom: 10 }}>
-              You've stacked two climbing sessions in three days. Forearm load is at
-              <strong style={{ color: 'var(--risk-crit)' }}> 3.9</strong>, well into the critical zone
-              (anything above 3.5 doubles tendon injury risk in studies of grip athletes).
-              Pair that with yesterday's heavy push day and your chest is also elevated.
+              {isLoadingAi
+                ? 'Generating personalized coaching text from your workout and risk data...'
+                : report?.summary || 'Log workouts to generate a coach-style training health report.'}
             </div>
+            {report?.trend && (
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-soft)', marginBottom: 10 }}>
+                {report.trend}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn">📅 Suggest rest day Friday</button>
-              <button className="btn">🧘 Add forearm mobility</button>
-              <button className="btn ghost">Dismiss</button>
+              <button className="btn" onClick={() => loadAiCoach({ force: true })} disabled={isLoadingAi}>
+                {isLoadingAi ? 'Generating...' : 'Refresh AI coach'}
+              </button>
+              <button className="btn ghost" onClick={() => {
+                sessionStorage.removeItem(cacheKey(username))
+                setAiCoach(emptyCoach)
+                loadAiCoach({ force: true })
+              }}>
+                Clear cache
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {(analysis || plan || report) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+          <div className="card">
+            <div className="card-title">
+              <span>Smart workout analyzer</span>
+              <span className="badge">{analysis?.source || 'demo'}</span>
+            </div>
+            {(analysis?.patterns || []).slice(0, 4).map((pattern, index) => (
+              <div key={index} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', fontSize: 13.5, color: 'var(--text-soft)', lineHeight: 1.45 }}>
+                {pattern}
+              </div>
+            ))}
+            {analysis?.focus_area && (
+              <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 6, background: 'var(--bg-sidebar)', fontSize: 13, color: 'var(--text)' }}>
+                <strong>Focus:</strong> {analysis.focus_area}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-title">
+              <span>7-day plan preview</span>
+              <span className="badge">{plan?.source || 'demo'}</span>
+            </div>
+            {(plan?.plan || []).slice(0, 4).map((day) => (
+              <div key={day.day} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text)' }}>{day.day} · {day.focus}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {day.exercises?.slice(0, 3).join(', ')}
+                </div>
+              </div>
+            ))}
+            {report?.disclaimer && (
+              <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                {report.disclaimer}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20, marginBottom: 20 }}>
         <div className="card">

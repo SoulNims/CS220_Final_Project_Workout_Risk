@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage({ onLogin, error: serverError, loading }) {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
 
@@ -40,10 +40,14 @@ export default function LoginPage({ onLogin }) {
             />
           </div>
 
-          {error && <p style={{ color: 'var(--risk-crit)', fontSize: 12.5, marginBottom: 16, marginTop: -8 }}>{error}</p>}
+          {(error || serverError) && (
+            <p style={{ color: 'var(--risk-crit)', fontSize: 12.5, marginBottom: 16, marginTop: -8 }}>
+              {error || serverError}
+            </p>
+          )}
 
-          <button type="submit" className="btn primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 16px', fontSize: 14 }}>
-            Get Started
+          <button type="submit" className="btn primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '11px 16px', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Connecting...' : 'Get Started'}
           </button>
         </form>
 

@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "InjuryRisk",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "username",
+      "value": "postmanuser"
+    },
+    {
+      "key": "workout_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Test 1: Register/Get User",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/users/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('username is returned', () => pm.expect(pm.response.json().username).to.eql(pm.collectionVariables.get('username')));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 2: Log Workout (chest)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"muscle_group\":\"chest\",\"sets\":4,\"reps\":10,\"intensity\":80}"
+        },
+        "url": "{{base_url}}/api/workouts/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "pm.test('saves workout id', () => { const body = pm.response.json(); pm.expect(body.id).to.be.a('string'); pm.collectionVariables.set('workout_id', body.id); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 3: Log Workout (quads)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"muscle_group\":\"quads\",\"sets\":5,\"reps\":12,\"intensity\":90}"
+        },
+        "url": "{{base_url}}/api/workouts/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 4: Get All Workouts",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/workouts/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('array of 2 workouts', () => pm.expect(pm.response.json()).to.have.length(2));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 5: Get Risk Scores",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/risk/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('has level field', () => pm.expect(pm.response.json()[0]).to.have.property('level'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 6: Get Recommendations",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/recommendations/{{username}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('has message field', () => pm.expect(pm.response.json()[0]).to.have.property('message'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 7: Get Risk History",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/risk/{{username}}/history"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "pm.test('history array returned', () => pm.expect(pm.response.json()).to.be.an('array'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 8: Delete Workout",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/api/workouts/{{username}}/{{workout_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 204', () => pm.response.to.have.status(204));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test 9: Unknown User Returns 404",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/risk/unknown-postman-user"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('status is 404', () => pm.response.to.have.status(404));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
