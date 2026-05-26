@@ -20,7 +20,6 @@ export default function App() {
   const [page, setPage] = useState('dashboard')
   const [load, setLoad] = useState({})
   const [sessions, setSessions] = useState([])
-  const [aiCoach, setAiCoach] = useState({ analysis: null, plan: null, report: null })
   const [status, setStatus] = useState({ loading: false, error: '' })
   const [selectedMuscle, setSelectedMuscle] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
@@ -40,16 +39,12 @@ export default function App() {
     if (!name) return
     setStatus({ loading: true, error: '' })
     try {
-      const [workouts, riskScores, analysis, plan, report] = await Promise.all([
+      const [workouts, riskScores] = await Promise.all([
         api.getWorkouts(name),
         api.getRiskScores(name),
-        api.getAiAnalysis(name),
-        api.getAiPlan(name),
-        api.getAiReport(name),
       ])
       setSessions(workouts.map(apiWorkoutToSession))
       setLoad(riskScoresToLoad(riskScores))
-      setAiCoach({ analysis, plan, report })
       setStatus({ loading: false, error: '' })
     } catch (error) {
       setStatus({ loading: false, error: error.message || 'Unable to reach the API server' })
@@ -84,7 +79,6 @@ export default function App() {
     setAge(null)
     setLoad({})
     setSessions([])
-    setAiCoach({ analysis: null, plan: null, report: null })
     setStatus({ loading: false, error: '' })
     setPage('dashboard')
     setShowSettings(false)
@@ -182,8 +176,7 @@ export default function App() {
               load={load}
               sessions={sessions}
               trend={TREND}
-              aiCoach={aiCoach}
-              loading={status.loading}
+              username={username}
             />
           )}
         </div>

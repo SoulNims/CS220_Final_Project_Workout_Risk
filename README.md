@@ -53,7 +53,7 @@ Gemini is optional. To use real Gemini responses, edit the root `.env`:
 
 ```text
 GEMINI_API_KEY=your_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-2.0-flash
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 

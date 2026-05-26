@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { IconChev, IconSparkle, IconActivity } from '../icons'
 import { aggregateScore, RISK_COLORS, MUSCLE_LABEL, loadToRisk } from '../data'
+import { api } from '../services/api'
 
 function BreakdownRow({ label, value, contribution, note }) {
   const pos = contribution >= 0
@@ -33,11 +35,96 @@ function Recommendation({ priority, title, body, tags }) {
   )
 }
 
-export default function Insights({ load, sessions, trend, aiCoach, loading }) {
+const emptyCoach = { analysis: null, plan: null, report: null }
+
+function cacheKey(username) {
+  return `irp_ai_coach_${username}`
+}
+
+function readCachedCoach(username) {
+  try {
+    const raw = sessionStorage.getItem(cacheKey(username))
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedCoach(username, data) {
+  try {
+    sessionStorage.setItem(cacheKey(username), JSON.stringify(data))
+  } catch {
+    // Cache is an optimization; ignore storage failures.
+  }
+}
+
+export default function Insights({ load, sessions, trend, username }) {
   const score = aggregateScore(load)
+  const [aiCoach, setAiCoach] = useState(() => readCachedCoach(username) || emptyCoach)
+  const [aiStatus, setAiStatus] = useState(() => readCachedCoach(username) ? 'cached' : 'idle')
+  const [aiError, setAiError] = useState('')
   const analysis = aiCoach?.analysis
   const plan = aiCoach?.plan
   const report = aiCoach?.report
+  const isLoadingAi = aiStatus === 'loading'
+
+  async function loadAiCoach({ force = false } = {}) {
+    if (!username) return
+    const cached = readCachedCoach(username)
+    if (cached && !force) {
+      setAiCoach(cached)
+      setAiStatus('cached')
+      setAiError('')
+      return
+    }
+
+    setAiStatus('loading')
+    setAiError('')
+    try {
+      const [analysisResult, planResult, reportResult] = await Promise.all([
+        api.getAiAnalysis(username),
+        api.getAiPlan(username),
+        api.getAiReport(username),
+      ])
+      const next = {
+        analysis: analysisResult,
+        plan: planResult,
+        report: reportResult,
+        cachedAt: new Date().toISOString(),
+      }
+      setAiCoach(next)
+      writeCachedCoach(username, next)
+      const usedGemini = [analysisResult, planResult, reportResult].some(item => item?.source === 'gemini')
+      setAiStatus(usedGemini ? 'gemini' : 'demo')
+    } catch (error) {
+      setAiStatus('error')
+      setAiError(error.message || 'Unable to load AI coach guidance.')
+    }
+  }
+
+  useEffect(() => {
+    setAiCoach(readCachedCoach(username) || emptyCoach)
+    setAiStatus(readCachedCoach(username) ? 'cached' : 'idle')
+    setAiError('')
+    loadAiCoach()
+  }, [username])
+
+  const sourceLabel = report?.source === 'gemini'
+    ? 'Gemini'
+    : report?.source === 'demo'
+      ? 'demo mode'
+      : aiStatus === 'cached'
+        ? 'cached'
+        : ''
+
+  const statusCopy = {
+    idle: 'AI coach will load when this page opens.',
+    loading: 'Loading AI coach guidance from Gemini. This uses your API quota once per session.',
+    cached: 'Showing cached AI coach guidance for this session.',
+    gemini: 'Gemini-backed response loaded.',
+    demo: 'Demo mode shown because Gemini is unavailable or rate-limited.',
+    error: aiError,
+  }[aiStatus]
 
   const muscleLoads = Object.entries(load)
     .filter(([, v]) => v > 0)
@@ -63,11 +150,16 @@ export default function Insights({ load, sessions, trend, aiCoach, loading }) {
           </div>
           <div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 500, marginBottom: 6 }}>
-              AI coach summary {report?.source ? `· ${report.source === 'gemini' ? 'Gemini' : 'demo mode'}` : ''}
+              AI coach summary {sourceLabel ? `· ${sourceLabel}` : ''}
             </div>
+            {statusCopy && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                {statusCopy}
+              </div>
+            )}
             <div style={{ fontSize: 14.5, lineHeight: 1.55, color: 'var(--text)', marginBottom: 10 }}>
-              {loading
-                ? 'Loading AI coach guidance from the FastAPI backend...'
+              {isLoadingAi
+                ? 'Generating personalized coaching text from your workout and risk data...'
                 : report?.summary || 'Log workouts to generate a coach-style training health report.'}
             </div>
             {report?.trend && (
@@ -76,9 +168,16 @@ export default function Insights({ load, sessions, trend, aiCoach, loading }) {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn">📅 Review 7-day plan</button>
-              <button className="btn">🧠 Analyze patterns</button>
-              <button className="btn ghost">Refresh from API</button>
+              <button className="btn" onClick={() => loadAiCoach({ force: true })} disabled={isLoadingAi}>
+                {isLoadingAi ? 'Generating...' : 'Refresh AI coach'}
+              </button>
+              <button className="btn ghost" onClick={() => {
+                sessionStorage.removeItem(cacheKey(username))
+                setAiCoach(emptyCoach)
+                setAiStatus('idle')
+              }}>
+                Clear cache
+              </button>
             </div>
           </div>
         </div>
