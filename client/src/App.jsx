@@ -23,7 +23,6 @@ export default function App() {
   const [load, setLoad] = useState({})
   const [sessions, setSessions] = useState([])
   const [status, setStatus] = useState({ loading: false, error: '' })
-  const [selectedMuscle, setSelectedMuscle] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
 
@@ -102,6 +101,38 @@ export default function App() {
   const onEditWorkout = (s) => { setEditing(s); setShowAdd(true) }
   const closeModal = () => { setShowAdd(false); setEditing(null) }
 
+  function onLogMuscle(muscleId) {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const todaySession = sessions.find(s => s.date === todayIso)
+    if (todaySession) {
+      const groups = todaySession.groups.includes(muscleId)
+        ? todaySession.groups
+        : [...todaySession.groups, muscleId]
+      const existingEntries = todaySession.entries || []
+      const entries = existingEntries.find(e => e.group === muscleId)
+        ? existingEntries
+        : [...existingEntries, {
+            group: muscleId,
+            setRows: Array.from({ length: 3 }, () => ({ rpe: todaySession.rpe || 7 })),
+            fields: [],
+          }]
+      setEditing({ ...todaySession, groups, entries })
+      setShowAdd(true)
+    } else {
+      const h = new Date().getHours()
+      const name = h < 5 ? 'Late-night workout' : h < 12 ? 'Morning workout'
+        : h < 17 ? 'Afternoon workout' : h < 21 ? 'Evening workout' : 'Night workout'
+      setEditing({
+        name,
+        groups: [muscleId],
+        entries: [{ group: muscleId, setRows: Array.from({ length: 3 }, () => ({ rpe: 7 })), fields: [] }],
+        rpe: 7, duration: 60, soreness: 4,
+        date: todayIso,
+      })
+      setShowAdd(true)
+    }
+  }
+
   async function onSaveWorkout(s, isEdit) {
     if (!username) return
     setStatus({ loading: true, error: '' })
@@ -170,10 +201,9 @@ export default function App() {
               load={load}
               sessions={sessions}
               trend={TREND}
-              selectedMuscle={selectedMuscle}
-              setSelectedMuscle={setSelectedMuscle}
               onAddWorkout={onAddWorkout}
               onEditWorkout={onEditWorkout}
+              onLogMuscle={onLogMuscle}
               setPage={setPage}
             />
           )}

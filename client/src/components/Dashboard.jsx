@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import BodyAvatar from './BodyAvatar'
 import {
-  IconChev, IconPlus, IconChart, IconArrowUp, IconClose, IconSparkle,
+  IconChev, IconPlus, IconChart, IconArrowUp,
 } from '../icons'
 import {
-  aggregateScore, scoreLabel, INITIAL_LOAD, RISK_COLORS, RISK_KEY,
+  aggregateScore, scoreLabel, INITIAL_LOAD, RISK_COLORS,
   RISK_LABELS, MUSCLE_LABEL, loadToRisk, formatDate,
 } from '../data'
 
-export default function Dashboard({ load, sessions, trend, selectedMuscle, setSelectedMuscle, onAddWorkout, onEditWorkout, setPage }) {
+export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage }) {
   const score = aggregateScore(load)
   const sl = scoreLabel(score)
 
@@ -95,14 +95,14 @@ export default function Dashboard({ load, sessions, trend, selectedMuscle, setSe
         </div>
       </div>
 
-      {/* Today's workouts */}
-      <TodaysWorkouts sessions={todays} onAddWorkout={onAddWorkout} onEditWorkout={onEditWorkout} />
-
       {/* Body + trend */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        <AvatarCard load={load} sessions={sessions} selected={selectedMuscle} onSelect={setSelectedMuscle} />
+        <AvatarCard load={load} onLogMuscle={onLogMuscle} />
         <TrendCard trend={trend} />
       </div>
+
+      {/* Today's workouts — collapsible tab below avatar */}
+      <TodaysWorkouts sessions={todays} onAddWorkout={onAddWorkout} onEditWorkout={onEditWorkout} />
 
       {/* Recent workouts */}
       <div className="card">
@@ -290,33 +290,85 @@ export function SessionList({ sessions, compact, onSelect }) {
 }
 
 function TodaysWorkouts({ sessions, onAddWorkout, onEditWorkout }) {
+  const [expanded, setExpanded] = useState(false)
   const empty = sessions.length === 0
+
+  // Merge sessions with the same workout name into one display row
+  const grouped = Object.values(
+    sessions.reduce((acc, s) => {
+      const key = s.name
+      if (!acc[key]) {
+        acc[key] = { ...s, _all: [s] }
+      } else {
+        acc[key].groups = [...new Set([...acc[key].groups, ...s.groups])]
+        acc[key].rpe = Math.max(acc[key].rpe, s.rpe)
+        acc[key]._all = [...acc[key]._all, s]
+        const merged = [...(acc[key].entries || [])]
+        ;(s.entries || []).forEach(e => {
+          if (!merged.find(x => x.group === e.group)) merged.push(e)
+        })
+        acc[key].entries = merged
+      }
+      return acc
+    }, {})
+  )
+
+  const allMuscles = [...new Set(sessions.flatMap(s => s.groups))]
 
   return (
     <div className="card" style={{ marginBottom: 20 }}>
-      <div className="card-title">
+      <div
+        className="card-title"
+        onClick={() => !empty && setExpanded(v => !v)}
+        style={{ cursor: empty ? 'default' : 'pointer', userSelect: 'none' }}
+      >
         <span>Today's workouts</span>
-        <span className="badge mono">
-          {empty ? 'none yet' : `${sessions.length} session${sessions.length === 1 ? '' : 's'}`}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {empty ? (
+            <span className="badge mono">none yet</span>
+          ) : (
+            <>
+              <span className="badge mono">
+                {grouped.length} session{grouped.length === 1 ? '' : 's'} · {allMuscles.length} muscle{allMuscles.length === 1 ? '' : 's'}
+              </span>
+              <span style={{
+                color: 'var(--text-muted)', display: 'inline-flex',
+                transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+              }}>
+                <IconChev size={11} />
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
-      {empty ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 4px 4px' }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>Nothing logged yet today</div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
-              Start a session — you can keep adding muscle groups and sets to it through the day.
-            </div>
-          </div>
-          <button className="btn primary" onClick={onAddWorkout}>
-            <IconPlus size={14} /> Log workout
+      {/* Collapsed non-empty: muscle pills summary */}
+      {!empty && !expanded && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+          {allMuscles.slice(0, 8).map(g => (
+            <span key={g} className="pill" style={{ fontSize: 10.5, padding: '2px 8px' }}>
+              {MUSCLE_LABEL[g]?.split(' ')[0] || g}
+            </span>
+          ))}
+          {allMuscles.length > 8 && (
+            <span className="pill" style={{ fontSize: 10.5, padding: '2px 8px' }}>+{allMuscles.length - 8}</span>
+          )}
+          <button
+            className="btn"
+            onClick={(e) => { e.stopPropagation(); onAddWorkout() }}
+            style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: 11.5 }}
+          >
+            <IconPlus size={11} /> Add
           </button>
         </div>
-      ) : (
+      )}
+
+      {/* Expanded: grouped session list */}
+      {!empty && expanded && (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {sessions.map((s, i) => (
+          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 4 }}>
+            {grouped.map((s, i) => (
               <TodayRow key={s.id} session={s} onEdit={() => onEditWorkout(s)} top={i === 0} />
             ))}
           </div>
@@ -325,13 +377,28 @@ function TodaysWorkouts({ sessions, onAddWorkout, onEditWorkout }) {
             marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)',
           }}>
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-              Click a session to edit · add muscles, sets, or notes
+              Tap a session to edit · add muscles, sets, or notes
             </span>
             <button className="btn" onClick={onAddWorkout}>
               <IconPlus size={13} /> Add another
             </button>
           </div>
         </>
+      )}
+
+      {/* Empty state */}
+      {empty && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 4px 4px' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 2 }}>Nothing logged yet today</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+              Tap a muscle on the avatar or log a session manually.
+            </div>
+          </div>
+          <button className="btn primary" onClick={onAddWorkout}>
+            <IconPlus size={14} /> Log workout
+          </button>
+        </div>
       )}
     </div>
   )
@@ -374,44 +441,23 @@ function TodayRow({ session: s, onEdit, top }) {
         <div>RPE {s.rpe} · {s.duration}m</div>
         {setCount != null && <div>{setCount} sets</div>}
       </div>
-      <span className="btn ghost" style={{ padding: '4px 8px', fontSize: 11.5, color: 'var(--text-soft)' }}>
-        <IconPlus size={11} /> Add muscle
-      </span>
+      <IconChev size={14} style={{ color: 'var(--text-muted)' }} />
     </div>
   )
 }
 
-function AvatarCard({ load, sessions = [], selected, onSelect }) {
-  const isSel = !!selected
-  const selLoad = isSel ? (load[selected] || 0) : 0
-  const selRisk = isSel ? loadToRisk(selLoad) : 0
-
+function AvatarCard({ load, onLogMuscle }) {
   return (
     <div className="card" style={{ padding: '24px 24px 20px', position: 'relative' }}>
-      <div
-        onClick={() => onSelect && onSelect(null)}
-        style={{
-          textAlign: 'center', marginBottom: 18,
-          fontSize: 10.5, letterSpacing: '0.2em', textTransform: 'uppercase',
-          color: 'var(--text-muted)', fontWeight: 500,
-          cursor: isSel ? 'pointer' : 'default',
-        }}>
-        {isSel ? 'Click to deselect' : 'Tap a muscle to see history'}
+      <div style={{
+        textAlign: 'center', marginBottom: 18,
+        fontSize: 10.5, letterSpacing: '0.2em', textTransform: 'uppercase',
+        color: 'var(--text-muted)', fontWeight: 500,
+      }}>
+        Tap a muscle to log workout
       </div>
-
-      <BodyAvatar load={load} selected={selected} onSelect={onSelect} />
-
+      <BodyAvatar load={load} selected={null} onSelect={onLogMuscle} />
       <RiskLegend />
-
-      {isSel && (
-        <MuscleHistoryPanel
-          muscle={selected}
-          load={selLoad}
-          risk={selRisk}
-          sessions={sessions}
-          onClose={() => onSelect && onSelect(null)}
-        />
-      )}
     </div>
   )
 }
@@ -425,137 +471,6 @@ function RiskLegend() {
           <span style={{ fontSize: 11.5, color: 'var(--text-soft)', fontWeight: 500 }}>{label}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-function MuscleHistoryPanel({ muscle, load, risk, sessions, onClose }) {
-  const touched = sessions.filter(s => s.groups && s.groups.includes(muscle))
-
-  const days = 14
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const series = Array.from({ length: days }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(today.getDate() - (days - 1 - i))
-    const iso = d.toISOString().slice(0, 10)
-    const hits = touched.filter(s => s.date === iso)
-    const v = hits.reduce((a, s) => a + s.rpe, 0)
-    return { d, v }
-  })
-  const maxV = Math.max(1, ...series.map(s => s.v))
-
-  const lastIso = touched[0]?.date
-  const daysSince = lastIso
-    ? Math.max(0, Math.floor((today - new Date(lastIso)) / (1000 * 60 * 60 * 24)))
-    : null
-
-  const riskKey = RISK_KEY[risk]
-  const riskColor = RISK_COLORS[risk]
-
-  let hint = 'Cleared for normal volume.'
-  if (risk >= 4) hint = `Critically loaded. Skip ${MUSCLE_LABEL[muscle]?.toLowerCase()}-dominant work for 48h.`
-  else if (risk === 3) hint = 'Elevated load. Keep next session light or accessory-only.'
-  else if (risk === 2) hint = 'Moderate load. Watch volume on the next session.'
-  else if (risk === 1) hint = 'Low load. Cleared for hard work.'
-  else if (risk === 0) hint = 'No recorded sessions yet — log a workout to start tracking.'
-
-  return (
-    <div className="fade-up" style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: riskColor, boxShadow: `0 0 0 3px ${riskColor}22` }} />
-        <div style={{ flex: 1 }}>
-          <div className="display" style={{ fontSize: 19, lineHeight: 1.1, letterSpacing: '-0.015em' }}>
-            {MUSCLE_LABEL[muscle]}
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 3, fontSize: 11.5, color: 'var(--text-muted)' }}>
-            <span className={'pill ' + riskKey} style={{ padding: '1px 8px', fontSize: 10.5 }}>
-              <span className="dot" />{RISK_LABELS[risk]}
-            </span>
-            <span className="mono">load {load.toFixed(2)}</span>
-            <span>·</span>
-            <span>
-              {daysSince === null ? 'never worked' :
-               daysSince === 0 ? 'worked today' :
-               daysSince === 1 ? 'last worked yesterday' :
-               `last worked ${daysSince}d ago`}
-            </span>
-          </div>
-        </div>
-        <button className="btn-icon" onClick={onClose} aria-label="Close detail">
-          <IconClose size={13} />
-        </button>
-      </div>
-
-      <div style={{ background: 'var(--bg-sidebar)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500, marginBottom: 8 }}>
-          <span>14-day activity</span>
-          <span className="mono" style={{ letterSpacing: 0, textTransform: 'none' }}>
-            {touched.length} session{touched.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <svg viewBox="0 0 280 44" width="100%" style={{ display: 'block' }}>
-          {series.map((p, i) => {
-            const x = (i / (days - 1)) * 270 + 4
-            const h = p.v === 0 ? 2 : (p.v / maxV) * 36 + 4
-            const y = 40 - h
-            const isLast = i === days - 1
-            return (
-              <g key={i}>
-                <rect x={x - 4} y={y} width={8} height={h} rx={2}
-                      fill={p.v === 0 ? 'var(--border)' : riskColor}
-                      opacity={p.v === 0 ? 0.6 : isLast ? 1 : 0.85} />
-              </g>
-            )
-          })}
-          <line x1="0" x2="280" y1="40" y2="40" stroke="var(--border)" strokeWidth="1" />
-        </svg>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
-          <span>{series[0].d.getMonth() + 1}/{series[0].d.getDate()}</span>
-          <span>today</span>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500, marginBottom: 10 }}>
-        Recent sessions
-      </div>
-      {touched.length === 0 ? (
-        <div style={{ padding: '14px 12px', textAlign: 'center', background: 'var(--bg-sidebar)', borderRadius: 8, color: 'var(--text-muted)', fontSize: 12.5 }}>
-          No recorded sessions touching this muscle.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {touched.slice(0, 5).map((s, i) => {
-            const entry = s.entries && s.entries.find(e => e.group === muscle)
-            const setCount = entry && entry.setRows ? entry.setRows.length : null
-            const firstRow = entry && entry.setRows && entry.setRows[0]
-            const weight = firstRow?.weight || entry?.weight
-            const reps = firstRow?.reps || entry?.reps
-            return (
-              <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '6px 1fr auto', gap: 12, alignItems: 'center', padding: '10px 4px', borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
-                <div style={{ width: 6, height: 28, borderRadius: 2, background: s.rpe >= 8 ? 'var(--risk-crit)' : s.rpe >= 6 ? 'var(--risk-high)' : 'var(--risk-mod)' }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{s.name}</div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
-                    <span>{formatDate(s.date)}</span>
-                    {setCount ? <><span>·</span><span>{setCount} sets</span></> : null}
-                    {reps ? <><span>·</span><span>{reps} reps</span></> : null}
-                    {weight ? <><span>·</span><span>{weight}</span></> : null}
-                  </div>
-                </div>
-                <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  RPE {entry?.rpe ?? s.rpe} · {s.duration}m
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      <div style={{ marginTop: 16, padding: '11px 13px', background: `${riskColor}10`, border: `1px solid ${riskColor}33`, borderRadius: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <IconSparkle size={14} style={{ color: riskColor, flexShrink: 0, marginTop: 1 }} />
-        <div style={{ fontSize: 12.5, color: 'var(--text-soft)', lineHeight: 1.5 }}>{hint}</div>
-      </div>
     </div>
   )
 }

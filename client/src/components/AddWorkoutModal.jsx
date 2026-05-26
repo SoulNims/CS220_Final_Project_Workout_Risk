@@ -15,7 +15,7 @@ function timeOfDayName(d = new Date()) {
 }
 
 export default function AddWorkoutModal({ open, onClose, onSubmit, editing }) {
-  const isEdit = !!editing
+  const isEdit = !!(editing && editing.id)
   const [name, setName] = useState(timeOfDayName())
   const [entries, setEntries] = useState([])
   const [rpe, setRpe] = useState(7)
