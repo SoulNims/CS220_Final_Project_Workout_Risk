@@ -231,8 +231,9 @@ def _normalize_coach(ai: dict) -> dict | None:
     plan = ai.get("plan")
     report = ai.get("report")
     if not isinstance(analysis, dict) or not isinstance(plan, dict) or not isinstance(report, dict):
-        return None
-    plan_days = plan.get("plan")
+        if not isinstance(plan, list):
+            return None
+    plan_days = plan.get("plan") if isinstance(plan, dict) else plan
     if not isinstance(plan_days, list):
         return None
     return {
