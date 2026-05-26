@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 from datetime import datetime, timedelta, timezone
 from urllib import error, request
 
+import certifi
 from dotenv import load_dotenv
 
 from models.schemas import MUSCLE_GROUPS
@@ -108,7 +110,8 @@ def _call_gemini(prompt: str) -> dict | None:
     )
 
     try:
-        with request.urlopen(gemini_request, timeout=12) as response:
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        with request.urlopen(gemini_request, timeout=12, context=ssl_context) as response:
             data = json.loads(response.read().decode("utf-8"))
     except (OSError, error.HTTPError, json.JSONDecodeError):
         return None
