@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Local dev fallback: file:tendon.db  — set TURSO_DATABASE_URL in .env for prod
-_URL   = os.environ.get("TURSO_DATABASE_URL", "file:tendon.db")
+# libsql:// → https:// so libsql-client uses HTTP rather than WebSocket
+_raw   = os.environ.get("TURSO_DATABASE_URL", "file:tendon.db")
+_URL   = _raw.replace("libsql://", "https://", 1)
 _TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
 
 _client: libsql_client.Client | None = None
