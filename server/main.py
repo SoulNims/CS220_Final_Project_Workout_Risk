@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import get_conn, init_db
+from database import close_db, get_client, init_db
 from models import (
     MuscleResponse, SessionCreate, SessionResponse, StateResponse,
     UserCreate, UserResponse, UserUpdate,
@@ -18,8 +18,9 @@ from risk import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    await init_db()
     yield
+    await close_db()
 
 
 app = FastAPI(title="Tendon API", lifespan=lifespan)
@@ -33,35 +34,34 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Row helpers
 # ---------------------------------------------------------------------------
 
-def _require_user(username: str, conn):
-    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    if not row:
+def _to_dict(columns, row) -> dict:
+    return {columns[i]: row[i] for i in range(len(columns))}
+
+
+def _parse_session(d: dict) -> dict:
+    d["groups"] = json.loads(d["groups"])
+    d["entries"] = json.loads(d["entries"]) if d["entries"] else None
+    return d
+
+
+async def _require_user(username: str) -> dict:
+    result = await get_client().execute(
+        "SELECT * FROM users WHERE username = ?", [username]
+    )
+    if not result.rows:
         raise HTTPException(404, "User not found")
-    return row
+    return _to_dict(result.columns, result.rows[0])
 
 
-def _fetch_sessions(username: str, conn) -> list[dict]:
-    rows = conn.execute(
+async def _fetch_sessions(username: str) -> list[dict]:
+    result = await get_client().execute(
         "SELECT * FROM sessions WHERE username = ? ORDER BY date DESC, rowid DESC",
-        (username,),
-    ).fetchall()
-    result = []
-    for r in rows:
-        s = dict(r)
-        s["groups"] = json.loads(s["groups"])
-        s["entries"] = json.loads(s["entries"]) if s["entries"] else None
-        result.append(s)
-    return result
-
-
-def _row_to_session(row) -> dict:
-    s = dict(row)
-    s["groups"] = json.loads(s["groups"])
-    s["entries"] = json.loads(s["entries"]) if s["entries"] else None
-    return s
+        [username],
+    )
+    return [_parse_session(_to_dict(result.columns, row)) for row in result.rows]
 
 
 # ---------------------------------------------------------------------------
@@ -69,40 +69,33 @@ def _row_to_session(row) -> dict:
 # ---------------------------------------------------------------------------
 
 @app.post("/users", response_model=UserResponse, status_code=201)
-def login_or_create(body: UserCreate):
-    conn = get_conn()
-    row = conn.execute("SELECT * FROM users WHERE username = ?", (body.username,)).fetchone()
-    if not row:
-        conn.execute(
+async def login_or_create(body: UserCreate):
+    db = get_client()
+    result = await db.execute("SELECT * FROM users WHERE username = ?", [body.username])
+    if not result.rows:
+        await db.execute(
             "INSERT INTO users (username, gender, age) VALUES (?, ?, ?)",
-            (body.username, body.gender or "", body.age),
+            [body.username, body.gender or "", body.age],
         )
-        conn.commit()
-        row = conn.execute("SELECT * FROM users WHERE username = ?", (body.username,)).fetchone()
-    conn.close()
-    return dict(row)
+        result = await db.execute("SELECT * FROM users WHERE username = ?", [body.username])
+    return _to_dict(result.columns, result.rows[0])
 
 
 @app.get("/users/{username}", response_model=UserResponse)
-def get_user(username: str):
-    conn = get_conn()
-    row = _require_user(username, conn)
-    conn.close()
-    return dict(row)
+async def get_user(username: str):
+    return await _require_user(username)
 
 
 @app.patch("/users/{username}", response_model=UserResponse)
-def update_user(username: str, body: UserUpdate):
-    conn = get_conn()
-    _require_user(username, conn)
+async def update_user(username: str, body: UserUpdate):
+    db = get_client()
+    await _require_user(username)
     if body.gender is not None:
-        conn.execute("UPDATE users SET gender = ? WHERE username = ?", (body.gender, username))
+        await db.execute("UPDATE users SET gender = ? WHERE username = ?", [body.gender, username])
     if body.age is not None:
-        conn.execute("UPDATE users SET age = ? WHERE username = ?", (body.age, username))
-    conn.commit()
-    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    conn.close()
-    return dict(row)
+        await db.execute("UPDATE users SET age = ? WHERE username = ?", [body.age, username])
+    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
+    return _to_dict(result.columns, result.rows[0])
 
 
 # ---------------------------------------------------------------------------
@@ -110,12 +103,9 @@ def update_user(username: str, body: UserUpdate):
 # ---------------------------------------------------------------------------
 
 @app.get("/users/{username}/state", response_model=StateResponse)
-def get_state(username: str):
-    conn = get_conn()
-    _require_user(username, conn)
-    sessions = _fetch_sessions(username, conn)
-    conn.close()
-
+async def get_state(username: str):
+    await _require_user(username)
+    sessions = await _fetch_sessions(username)
     loads = compute_loads(sessions)
     risk = {
         g: {
@@ -137,70 +127,59 @@ def get_state(username: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/users/{username}/sessions", response_model=list[SessionResponse])
-def list_sessions(username: str):
-    conn = get_conn()
-    _require_user(username, conn)
-    sessions = _fetch_sessions(username, conn)
-    conn.close()
-    return sessions
+async def list_sessions(username: str):
+    await _require_user(username)
+    return await _fetch_sessions(username)
 
 
 @app.post("/users/{username}/sessions", response_model=SessionResponse, status_code=201)
-def create_session(username: str, body: SessionCreate):
-    conn = get_conn()
-    _require_user(username, conn)
+async def create_session(username: str, body: SessionCreate):
+    db = get_client()
+    await _require_user(username)
     sid = str(uuid.uuid4())[:8]
-    entries_json = (
-        json.dumps([e.model_dump() for e in body.entries]) if body.entries else None
-    )
-    conn.execute(
+    entries_json = json.dumps([e.model_dump() for e in body.entries]) if body.entries else None
+    await db.execute(
         "INSERT INTO sessions (id, username, date, name, groups, rpe, duration, soreness, entries)"
         " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (sid, username, body.date, body.name, json.dumps(body.groups),
-         body.rpe, body.duration, body.soreness, entries_json),
+        [sid, username, body.date, body.name, json.dumps(body.groups),
+         body.rpe, body.duration, body.soreness, entries_json],
     )
-    conn.commit()
-    row = conn.execute("SELECT * FROM sessions WHERE id = ?", (sid,)).fetchone()
-    conn.close()
-    return _row_to_session(row)
+    result = await db.execute("SELECT * FROM sessions WHERE id = ?", [sid])
+    return _parse_session(_to_dict(result.columns, result.rows[0]))
 
 
 @app.put("/users/{username}/sessions/{session_id}", response_model=SessionResponse)
-def update_session(username: str, session_id: str, body: SessionCreate):
-    conn = get_conn()
-    _require_user(username, conn)
-    row = conn.execute(
-        "SELECT id FROM sessions WHERE id = ? AND username = ?", (session_id, username)
-    ).fetchone()
-    if not row:
-        raise HTTPException(404, "Session not found")
-    entries_json = (
-        json.dumps([e.model_dump() for e in body.entries]) if body.entries else None
+async def update_session(username: str, session_id: str, body: SessionCreate):
+    db = get_client()
+    await _require_user(username)
+    check = await db.execute(
+        "SELECT id FROM sessions WHERE id = ? AND username = ?", [session_id, username]
     )
-    conn.execute(
+    if not check.rows:
+        raise HTTPException(404, "Session not found")
+    entries_json = json.dumps([e.model_dump() for e in body.entries]) if body.entries else None
+    await db.execute(
         "UPDATE sessions SET date=?, name=?, groups=?, rpe=?, duration=?, soreness=?, entries=?"
         " WHERE id=? AND username=?",
-        (body.date, body.name, json.dumps(body.groups), body.rpe, body.duration,
-         body.soreness, entries_json, session_id, username),
+        [body.date, body.name, json.dumps(body.groups), body.rpe, body.duration,
+         body.soreness, entries_json, session_id, username],
     )
-    conn.commit()
-    row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
-    conn.close()
-    return _row_to_session(row)
+    result = await db.execute("SELECT * FROM sessions WHERE id = ?", [session_id])
+    return _parse_session(_to_dict(result.columns, result.rows[0]))
 
 
 @app.delete("/users/{username}/sessions/{session_id}", status_code=204)
-def delete_session(username: str, session_id: str):
-    conn = get_conn()
-    _require_user(username, conn)
-    row = conn.execute(
-        "SELECT id FROM sessions WHERE id = ? AND username = ?", (session_id, username)
-    ).fetchone()
-    if not row:
+async def delete_session(username: str, session_id: str):
+    db = get_client()
+    await _require_user(username)
+    check = await db.execute(
+        "SELECT id FROM sessions WHERE id = ? AND username = ?", [session_id, username]
+    )
+    if not check.rows:
         raise HTTPException(404, "Session not found")
-    conn.execute("DELETE FROM sessions WHERE id = ? AND username = ?", (session_id, username))
-    conn.commit()
-    conn.close()
+    await db.execute(
+        "DELETE FROM sessions WHERE id = ? AND username = ?", [session_id, username]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -208,19 +187,15 @@ def delete_session(username: str, session_id: str):
 # ---------------------------------------------------------------------------
 
 @app.get("/users/{username}/muscle/{group}", response_model=MuscleResponse)
-def get_muscle(username: str, group: str):
+async def get_muscle(username: str, group: str):
     if group not in MUSCLE_GROUPS:
         raise HTTPException(400, f"Unknown muscle group: {group}")
-    conn = get_conn()
-    _require_user(username, conn)
-    sessions = _fetch_sessions(username, conn)
-    conn.close()
-
+    await _require_user(username)
+    sessions = await _fetch_sessions(username)
     loads = compute_loads(sessions)
     load_val = loads.get(group, 0.0)
     level = RISK_KEYS[load_to_risk(load_val)]
     recent = [s for s in sessions if group in s["groups"]][:3]
-
     return {
         "group": group,
         "load": round(load_val, 2),

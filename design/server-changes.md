@@ -26,3 +26,7 @@ Endpoints:
 Risk logic lives entirely in `risk.py` per D4 Protocol rule #5 (no business logic on client). Deterministic recommendations used; Gemini integration left for v2.
 
 **Next:** Wire the React client to call these endpoints instead of using mock data from `data.js`.
+
+## 2026-05-26 — Swap SQLite stdlib for Turso (libsql-client)
+**Files:** `server/database.py`, `server/main.py`, `server/requirements.txt`, `server/.env.example`
+**What:** Replaced `sqlite3` with the async `libsql-client` SDK so the database is hosted on Turso in production. All route handlers converted to `async def`. A single global `Client` is created at startup and closed on shutdown. Local dev fallback: set `TURSO_DATABASE_URL=file:tendon.db` — no Turso account needed for local testing. Added `.env.example` documenting required env vars.

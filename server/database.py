@@ -1,26 +1,31 @@
-import sqlite3
 import os
+import libsql_client
+from dotenv import load_dotenv
 
-DB_PATH = os.environ.get("DB_PATH", "tendon.db")
+load_dotenv()
+
+# Local dev fallback: file:tendon.db  — set TURSO_DATABASE_URL in .env for prod
+_URL   = os.environ.get("TURSO_DATABASE_URL", "file:tendon.db")
+_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
+
+_client: libsql_client.Client | None = None
 
 
-def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+def get_client() -> libsql_client.Client:
+    assert _client is not None, "DB not initialised — call init_db() first"
+    return _client
 
 
-def init_db() -> None:
-    conn = get_conn()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
+async def init_db() -> None:
+    global _client
+    _client = libsql_client.create_client(url=_URL, auth_token=_TOKEN)
+    await _client.batch([
+        """CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             gender   TEXT NOT NULL DEFAULT '',
             age      INTEGER
-        );
-
-        CREATE TABLE IF NOT EXISTS sessions (
+        )""",
+        """CREATE TABLE IF NOT EXISTS sessions (
             id       TEXT PRIMARY KEY,
             username TEXT NOT NULL REFERENCES users(username),
             date     TEXT NOT NULL,
@@ -30,9 +35,13 @@ def init_db() -> None:
             duration INTEGER NOT NULL,
             soreness INTEGER NOT NULL DEFAULT 5,
             entries  TEXT
-        );
+        )""",
+        "CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)",
+    ])
 
-        CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username);
-    """)
-    conn.commit()
-    conn.close()
+
+async def close_db() -> None:
+    global _client
+    if _client:
+        await _client.close()
+        _client = None
