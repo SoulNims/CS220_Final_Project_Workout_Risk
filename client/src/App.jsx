@@ -52,19 +52,21 @@ export default function App() {
     }
   }
 
-  async function handleLogin({ username: name, password, mode }) {
-    const cleanName = name.trim()
-    if (!cleanName) return
+  async function handleLogin({ email, password, mode }) {
+    const cleanEmail = email.trim()
+    if (!cleanEmail) return
     setStatus({ loading: true, error: '' })
     try {
       const response = mode === 'register'
-        ? await api.register({ username: cleanName, password })
-        : await api.login({ username: cleanName, password })
+        ? await api.register({ email: cleanEmail, password })
+        : await api.login({ email: cleanEmail, password })
+      const accountName = response.user.username
       localStorage.setItem('irp_token', response.token)
-      localStorage.setItem('irp_username', cleanName)
+      localStorage.setItem('irp_username', accountName)
+      if (response.user?.email) localStorage.setItem('irp_email', response.user.email)
       if (response.user?.gender) localStorage.setItem('irp_gender', response.user.gender)
       if (response.user?.age != null) localStorage.setItem('irp_age', response.user.age)
-      setUsername(cleanName)
+      setUsername(accountName)
       setGender(response.user?.gender || '')
       setAge(response.user?.age ?? null)
       setStatus({ loading: false, error: '' })
@@ -81,6 +83,7 @@ export default function App() {
   function handleLogout() {
     localStorage.removeItem('irp_token')
     localStorage.removeItem('irp_username')
+    localStorage.removeItem('irp_email')
     localStorage.removeItem('irp_gender')
     localStorage.removeItem('irp_age')
     setUsername('')

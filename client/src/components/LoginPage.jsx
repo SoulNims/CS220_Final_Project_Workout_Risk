@@ -1,16 +1,17 @@
 import { useState } from 'react'
 
 export default function LoginPage({ onLogin, error: serverError, loading }) {
-  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState('login')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!name.trim()) { setError('Please enter a username'); return }
+    if (!email.trim()) { setError('Please enter an email'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Please enter a valid email'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
-    onLogin({ username: name.trim(), password, mode })
+    onLogin({ email: email.trim(), password, mode })
   }
 
   return (
@@ -51,13 +52,14 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
           </div>
 
           <div style={{ marginBottom: 22 }}>
-            <label className="label">Username</label>
+            <label className="label">Email</label>
             <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Enter your username"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Enter your email"
               className="input"
+              autoComplete="email"
               autoFocus
             />
           </div>

@@ -9,12 +9,12 @@ router = APIRouter()
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=201)
 async def register(body: AuthRequest):
-    return await register_user(body.username, body.password)
+    return await register_user(body.email, body.password)
 
 
 @router.post("/auth/login", response_model=AuthResponse)
 async def login(body: AuthRequest):
-    return await login_user(body.username, body.password)
+    return await login_user(body.email, body.password)
 
 
 @router.get("/users/{username}", response_model=UserResponse)

@@ -5,10 +5,10 @@ def test_root_returns_welcome_message(client):
     assert "Tendon" in response.json()["message"]
 
 
-def _register(client, username="alice", password="password123"):
+def _register(client, email="alice@example.com", password="password123"):
     response = client.post(
         "/api/auth/register",
-        json={"username": username, "password": password},
+        json={"email": email, "password": password},
     )
     token = response.json()["token"]
     return {"Authorization": f"Bearer {token}"}
@@ -17,13 +17,14 @@ def _register(client, username="alice", password="password123"):
 def test_register_creates_user_and_token(client):
     response = client.post(
         "/api/auth/register",
-        json={"username": "alice", "password": "password123"},
+        json={"email": "alice@example.com", "password": "password123"},
     )
 
     assert response.status_code == 201
     body = response.json()
     assert body["token"]
     assert body["user"]["username"] == "alice"
+    assert body["user"]["email"] == "alice@example.com"
 
 
 def test_login_returns_token_for_existing_user(client):
@@ -31,7 +32,7 @@ def test_login_returns_token_for_existing_user(client):
 
     response = client.post(
         "/api/auth/login",
-        json={"username": "alice", "password": "password123"},
+        json={"email": "ALICE@example.com", "password": "password123"},
     )
 
     assert response.status_code == 200
@@ -60,7 +61,7 @@ def test_register_existing_user_is_rejected(client):
 
     response = client.post(
         "/api/auth/register",
-        json={"username": "alice", "password": "password123"},
+        json={"email": "alice@example.com", "password": "password123"},
     )
 
     assert response.status_code == 409

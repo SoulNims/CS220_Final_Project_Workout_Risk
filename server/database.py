@@ -24,6 +24,7 @@ async def init_db() -> None:
     await _client.batch([
         """CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
+            email TEXT,
             password_hash TEXT,
             gender   TEXT NOT NULL DEFAULT '',
             age      INTEGER
@@ -46,6 +47,12 @@ async def init_db() -> None:
     except Exception:
         # Column already exists on newer databases.
         pass
+    try:
+        await _client.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except Exception:
+        # Column already exists on newer databases.
+        pass
+    await _client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
 
 def row_to_dict(columns, row) -> dict:

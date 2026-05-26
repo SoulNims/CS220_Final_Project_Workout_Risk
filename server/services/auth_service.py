@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -92,6 +93,30 @@ def username_from_authorization(authorization: str | None) -> str:
     return parse_token(authorization.removeprefix("Bearer ").strip())
 
 
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def _username_from_email(email: str) -> str:
+    prefix = email.split("@", 1)[0]
+    username = re.sub(r"[^a-zA-Z0-9_-]+", "-", prefix).strip("-_").lower()
+    return username[:32] or "user"
+
+
+async def _available_username(email: str) -> str:
+    db = get_client()
+    base = _username_from_email(email)
+    candidate = base
+    counter = 2
+    while True:
+        result = await db.execute("SELECT username FROM users WHERE username = ?", [candidate])
+        if not result.rows:
+            return candidate
+        suffix = f"-{counter}"
+        candidate = f"{base[:40 - len(suffix)]}{suffix}"
+        counter += 1
+
+
 async def require_user_access(username: str, authorization: str | None) -> None:
     token_username = username_from_authorization(authorization)
     if token_username != username:
@@ -101,34 +126,36 @@ async def require_user_access(username: str, authorization: str | None) -> None:
         )
 
 
-async def register_user(username: str, password: str) -> dict:
-    clean_username = username.strip()
+async def register_user(email: str, password: str) -> dict:
+    clean_email = normalize_email(email)
     db = get_client()
-    existing = await db.execute("SELECT username FROM users WHERE username = ?", [clean_username])
+    existing = await db.execute("SELECT username FROM users WHERE email = ?", [clean_email])
     if existing.rows:
-        raise HTTPException(status_code=409, detail="Username is already taken.")
+        raise HTTPException(status_code=409, detail="An account already exists for this email.")
+    username = await _available_username(clean_email)
     await db.execute(
-        "INSERT INTO users (username, password_hash, gender, age) VALUES (?, ?, ?, ?)",
-        [clean_username, hash_password(password), "", None],
+        "INSERT INTO users (username, email, password_hash, gender, age) VALUES (?, ?, ?, ?, ?)",
+        [username, clean_email, hash_password(password), "", None],
     )
-    result = await db.execute("SELECT username, gender, age FROM users WHERE username = ?", [clean_username])
+    result = await db.execute("SELECT username, email, gender, age FROM users WHERE username = ?", [username])
     user = row_to_dict(result.columns, result.rows[0])
-    return {"token": create_token(clean_username), "user": user}
+    return {"token": create_token(username), "user": user}
 
 
-async def login_user(username: str, password: str) -> dict:
-    clean_username = username.strip()
+async def login_user(email: str, password: str) -> dict:
+    clean_email = normalize_email(email)
     db = get_client()
-    result = await db.execute("SELECT * FROM users WHERE username = ?", [clean_username])
+    result = await db.execute("SELECT * FROM users WHERE email = ?", [clean_email])
     if not result.rows:
-        raise HTTPException(status_code=401, detail="Invalid username or password.")
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
     user = row_to_dict(result.columns, result.rows[0])
     if not verify_password(password, user.get("password_hash")):
-        raise HTTPException(status_code=401, detail="Invalid username or password.")
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
     return {
-        "token": create_token(clean_username),
+        "token": create_token(user["username"]),
         "user": {
             "username": user["username"],
+            "email": user.get("email"),
             "gender": user.get("gender", ""),
             "age": user.get("age"),
         },
