@@ -37,6 +37,8 @@ export const api = {
   getRiskScores: (username) => request(`/risk/${username}`),
   getRiskHistory: (username) => request(`/risk/${username}/history`),
   getRecommendations: (username) => request(`/recommendations/${username}`),
+  getAiCoach: (username, { force = false } = {}) =>
+    request(`/ai/coach/${username}${force ? '?force=true' : ''}`),
   getAiAnalysis: (username) => request(`/ai/analyze/${username}`),
   getAiPlan: (username) => request(`/ai/plan/${username}`),
   getAiReport: (username) => request(`/ai/report/${username}`),

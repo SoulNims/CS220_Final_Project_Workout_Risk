@@ -128,3 +128,9 @@ class WeeklyHealthReport(BaseModel):
     trend: str
     focus: str
     disclaimer: str
+
+
+class AICoachResponse(BaseModel):
+    analysis: SmartWorkoutAnalysis
+    plan: WorkoutPlanResponse
+    report: WeeklyHealthReport

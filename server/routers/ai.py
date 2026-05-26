@@ -1,9 +1,24 @@
 from fastapi import APIRouter
 
-from models.schemas import SmartWorkoutAnalysis, WeeklyHealthReport, WorkoutPlanResponse
-from services.ai_service import get_smart_analysis, get_weekly_report, get_workout_plan
+from models.schemas import (
+    AICoachResponse,
+    SmartWorkoutAnalysis,
+    WeeklyHealthReport,
+    WorkoutPlanResponse,
+)
+from services.ai_service import (
+    get_ai_coach,
+    get_smart_analysis,
+    get_weekly_report,
+    get_workout_plan,
+)
 
 router = APIRouter()
+
+
+@router.get("/ai/coach/{username}", response_model=AICoachResponse)
+async def ai_coach(username: str, force: bool = False):
+    return await get_ai_coach(username, force=force)
 
 
 @router.get("/ai/analyze/{username}", response_model=SmartWorkoutAnalysis)

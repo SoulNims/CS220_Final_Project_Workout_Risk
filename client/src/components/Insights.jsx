@@ -86,15 +86,8 @@ export default function Insights({ load, sessions, trend, username }) {
     setAiStatus('loading')
     setAiError('')
     try {
-      const [analysisResult, planResult, reportResult] = await Promise.all([
-        api.getAiAnalysis(username),
-        api.getAiPlan(username),
-        api.getAiReport(username),
-      ])
       const next = {
-        analysis: analysisResult,
-        plan: planResult,
-        report: reportResult,
+        ...(await api.getAiCoach(username, { force })),
         cachedAt: new Date().toISOString(),
       }
       setAiCoach(next)

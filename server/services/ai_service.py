@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import ssl
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from urllib import error, request
 
 import certifi
@@ -19,6 +19,8 @@ DISCLAIMER = (
     "This is general fitness guidance, not medical advice. Stop if you feel pain "
     "and consult a qualified professional for injuries."
 )
+CACHE_TTL = timedelta(minutes=30)
+_coach_cache: dict[str, tuple[datetime, dict]] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +217,72 @@ def _fallback_report(context: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+def _fallback_coach(context: dict) -> dict:
+    return {
+        "analysis": _fallback_analysis(context),
+        "plan": _fallback_plan(context),
+        "report": _fallback_report(context),
+    }
+
+
+def _normalize_coach(ai: dict) -> dict | None:
+    analysis = ai.get("analysis")
+    plan = ai.get("plan")
+    report = ai.get("report")
+    if not isinstance(analysis, dict) or not isinstance(plan, dict) or not isinstance(report, dict):
+        return None
+    plan_days = plan.get("plan")
+    if not isinstance(plan_days, list):
+        return None
+    return {
+        "analysis": {
+            "source": "gemini",
+            "patterns": analysis.get("patterns", [])[:6],
+            "risk_notes": analysis.get("risk_notes", [])[:6],
+            "focus_area": analysis.get("focus_area", ""),
+            "disclaimer": DISCLAIMER,
+        },
+        "plan": {
+            "source": "gemini",
+            "plan": plan_days[:7],
+            "disclaimer": DISCLAIMER,
+        },
+        "report": {
+            "source": "gemini",
+            "title": report.get("title", "Weekly Training Health Report"),
+            "summary": report.get("summary", ""),
+            "trend": report.get("trend", ""),
+            "focus": report.get("focus", ""),
+            "disclaimer": DISCLAIMER,
+        },
+    }
+
+
+async def get_ai_coach(username: str, force: bool = False) -> dict:
+    now = datetime.now(timezone.utc)
+    cached = _coach_cache.get(username)
+    if cached and not force and now - cached[0] < CACHE_TTL:
+        return cached[1]
+
+    context = await _workout_context(username)
+    prompt = (
+        "You are a careful fitness coach and analytics assistant. Return JSON only "
+        "with keys analysis, plan, and report. analysis must contain patterns "
+        "(array of strings), risk_notes (array of strings), and focus_area (string). "
+        "plan must contain key plan, an array of 7 objects with day, focus, "
+        "exercises array, and reason. report must contain title, summary, trend, "
+        "and focus strings. Use the risk scores and session data. Do not diagnose "
+        "injuries or give medical advice. Use this context:\n"
+        f"{json.dumps(context, default=str)}"
+    )
+    ai = _call_gemini(prompt)
+    normalized = _normalize_coach(ai) if ai else None
+    if normalized:
+        _coach_cache[username] = (now, normalized)
+        return normalized
+    return _fallback_coach(context)
+
 
 async def get_smart_analysis(username: str) -> dict:
     context = await _workout_context(username)
