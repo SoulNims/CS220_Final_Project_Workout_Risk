@@ -1,10 +1,47 @@
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Node / JS ────────────────────────────────────────────────────────────────
 node_modules/
 dist/
-venv/
-.venv/
-*.db
+client/dist/
+
+# ── Project-specific ─────────────────────────────────────────────────────────
+CLAUDE.MD
 .pytest_cache/
+
+# ── OS & Editor ──────────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
