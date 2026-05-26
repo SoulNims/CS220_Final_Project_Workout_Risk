@@ -1,27 +1,32 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from database import close_db, init_db
 from routers.ai import router as ai_router
 from routers.risk import router as risk_router
 from routers.users import router as users_router
 from routers.workouts import router as workouts_router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+    await close_db()
+
+
 app = FastAPI(
-    title="InjuryGuard API",
+    title="Tendon API",
     description="AI-powered injury risk predictor for CS 220.",
-    version="1.0.0",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,4 +40,4 @@ app.include_router(ai_router, prefix="/api", tags=["ai"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to InjuryGuard API"}
+    return {"message": "Tendon API is running"}

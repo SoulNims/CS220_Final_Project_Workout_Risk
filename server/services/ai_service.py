@@ -3,16 +3,15 @@ from __future__ import annotations
 import json
 import os
 import ssl
-from datetime import datetime, timedelta, timezone
+from datetime import date, timedelta
 from urllib import error, request
 
 import certifi
 from dotenv import load_dotenv
 
 from models.schemas import MUSCLE_GROUPS
-from services.risk_service import calculate_risk_scores
-from services.workout_service import ensure_user
-from store.data_store import store
+from services.risk_service import get_risk_scores
+from services.workout_service import ensure_user, get_sessions
 
 load_dotenv()
 
@@ -22,51 +21,45 @@ DISCLAIMER = (
 )
 
 
-def _recent_workouts(username: str, days: int = 30) -> list[dict]:
-    ensure_user(username)
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    workouts = []
-    for workout in store.workouts[username]:
-        logged_at = workout["logged_at"]
-        if logged_at.tzinfo is None:
-            logged_at = logged_at.replace(tzinfo=timezone.utc)
-        if logged_at >= cutoff:
-            workouts.append(workout)
-    return sorted(workouts, key=lambda item: item["logged_at"], reverse=True)
+# ---------------------------------------------------------------------------
+# Context builder
+# ---------------------------------------------------------------------------
 
+async def _workout_context(username: str) -> dict:
+    await ensure_user(username)
+    sessions = await get_sessions(username)
+    risk_scores = await get_risk_scores(username)
 
-def _workout_context(username: str) -> dict:
-    workouts = _recent_workouts(username, days=30)
-    risk_scores = calculate_risk_scores(username, save_snapshot=False)
-    trained_muscles = {workout["muscle_group"] for workout in workouts}
-    untrained_muscles = [muscle for muscle in MUSCLE_GROUPS if muscle not in trained_muscles]
-    volume_by_muscle = {
-        muscle: sum(
-            workout["sets"] * workout["reps"]
-            for workout in workouts
-            if workout["muscle_group"] == muscle
-        )
-        for muscle in MUSCLE_GROUPS
-    }
+    cutoff = (date.today() - timedelta(days=30)).isoformat()
+    recent = [s for s in sessions if s["date"] >= cutoff]
+
+    trained = set()
+    for s in recent:
+        trained.update(s["groups"])
+    untrained = [m for m in MUSCLE_GROUPS if m not in trained]
+
     return {
         "username": username,
-        "workout_count_30_days": len(workouts),
-        "workouts_30_days": [
+        "session_count_30_days": len(recent),
+        "sessions_30_days": [
             {
-                "muscle_group": workout["muscle_group"],
-                "sets": workout["sets"],
-                "reps": workout["reps"],
-                "intensity": workout["intensity"],
-                "logged_at": workout["logged_at"].isoformat(),
+                "date": s["date"],
+                "name": s["name"],
+                "groups": s["groups"],
+                "rpe": s["rpe"],
+                "duration": s["duration"],
+                "soreness": s["soreness"],
             }
-            for workout in workouts
+            for s in recent
         ],
         "risk_scores": risk_scores,
-        "risk_history": store.risk_history[username][-8:],
-        "untrained_muscles": untrained_muscles,
-        "volume_by_muscle": volume_by_muscle,
+        "untrained_muscles": untrained,
     }
 
+
+# ---------------------------------------------------------------------------
+# Gemini call (synchronous — acceptable blocking for low-traffic class project)
+# ---------------------------------------------------------------------------
 
 def _extract_json(text: str) -> dict | None:
     cleaned = text.strip()
@@ -79,7 +72,7 @@ def _extract_json(text: str) -> dict | None:
     if start == -1 or end == -1:
         return None
     try:
-        return json.loads(cleaned[start : end + 1])
+        return json.loads(cleaned[start: end + 1])
     except json.JSONDecodeError:
         return None
 
@@ -93,80 +86,67 @@ def _call_gemini(prompt: str) -> dict | None:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.35,
-            "responseMimeType": "application/json",
-        },
+        "generationConfig": {"temperature": 0.35, "responseMimeType": "application/json"},
     }
-    body = json.dumps(payload).encode("utf-8")
     gemini_request = request.Request(
         url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": api_key,
-        },
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
-
     try:
-        ssl_context = ssl.create_default_context(cafile=certifi.where())
-        with request.urlopen(gemini_request, timeout=12, context=ssl_context) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        with request.urlopen(gemini_request, timeout=12, context=ctx) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
     except (OSError, error.HTTPError, json.JSONDecodeError):
         return None
 
     parts = (
-        data.get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [])
+        data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
     )
-    text = "".join(part.get("text", "") for part in parts)
-    return _extract_json(text)
+    return _extract_json("".join(p.get("text", "") for p in parts))
 
+
+# ---------------------------------------------------------------------------
+# Fallbacks (no Gemini key or call failed)
+# ---------------------------------------------------------------------------
 
 def _highest_risk(scores: list[dict]) -> dict:
-    return max(scores, key=lambda score: score["score"])
+    return max(scores, key=lambda s: s["score"])
 
 
-def _lowest_risk_muscles(scores: list[dict], limit: int = 3) -> list[str]:
-    return [
-        score["muscle_group"]
-        for score in sorted(scores, key=lambda item: item["score"])[:limit]
-    ]
+def _lowest_risk_groups(scores: list[dict], limit: int = 3) -> list[str]:
+    return [s["group"] for s in sorted(scores, key=lambda s: s["score"])[:limit]]
 
 
 def _fallback_analysis(context: dict) -> dict:
     scores = context["risk_scores"]
     highest = _highest_risk(scores)
     untrained = context["untrained_muscles"]
-    volume_by_muscle = context["volume_by_muscle"]
-    top_volume = max(volume_by_muscle, key=volume_by_muscle.get)
 
     patterns = []
-    if context["workout_count_30_days"] == 0:
-        patterns.append("No workouts have been logged in the last 30 days.")
+    if context["session_count_30_days"] == 0:
+        patterns.append("No sessions logged in the last 30 days.")
     else:
         patterns.append(
-            f"{top_volume.title()} has the highest 30-day volume at {volume_by_muscle[top_volume]} total reps."
+            f"{context['session_count_30_days']} sessions logged in the past 30 days."
         )
     if untrained:
-        patterns.append(
-            f"No recent workouts were logged for {', '.join(untrained[:4])}."
-        )
+        patterns.append(f"No recent load on: {', '.join(untrained[:4])}.")
     patterns.append(
-        f"The current highest risk muscle is {highest['muscle_group']} at {highest['level']} risk."
+        f"Highest risk area: {highest['group']} ({highest['level']}, score {highest['score']})."
     )
 
     return {
         "source": "demo",
         "patterns": patterns,
         "risk_notes": [
-            "The AI analyzer uses the server's existing risk scores as the source of truth.",
-            "Balance repeated high-volume muscles with lower-risk muscle groups when planning the week.",
+            "Risk is computed from accumulated RPE load across all logged sessions.",
+            "Balance repeated high-load muscles with undertrained muscle groups.",
         ],
         "focus_area": (
-            f"Prioritize recovery for {highest['muscle_group']} and add balanced work for undertrained muscles."
+            f"Prioritize recovery for {highest['group']} "
+            f"and add work for undertrained muscles."
         ),
         "disclaimer": DISCLAIMER,
     }
@@ -175,15 +155,12 @@ def _fallback_analysis(context: dict) -> dict:
 def _fallback_plan(context: dict) -> dict:
     scores = context["risk_scores"]
     highest = _highest_risk(scores)
-    low_risk = _lowest_risk_muscles(scores)
+    low_risk = _lowest_risk_groups(scores)
+
     safe_focus = [
-        "Lower body",
-        "Core stability",
-        "Mobility and recovery",
-        "Back and posterior chain",
-        "Single-leg strength",
-        "Conditioning",
-        "Rest and light mobility",
+        "Lower body", "Core stability", "Mobility and recovery",
+        "Back and posterior chain", "Single-leg strength",
+        "Conditioning", "Rest and light mobility",
     ]
     exercises = [
         ["Goblet squat", "Romanian deadlift", "Calf raises"],
@@ -195,53 +172,56 @@ def _fallback_plan(context: dict) -> dict:
         ["Walk", "Stretching", "Foam rolling"],
     ]
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    plan = []
-    for index, day in enumerate(days):
-        plan.append(
-            {
-                "day": day,
-                "focus": safe_focus[index],
-                "exercises": exercises[index],
-                "reason": (
-                    f"Current highest risk is {highest['muscle_group']} ({highest['level']}); "
-                    f"this day emphasizes lower-risk options like {', '.join(low_risk)}."
-                ),
-            }
-        )
+    plan = [
+        {
+            "day": day,
+            "focus": safe_focus[i],
+            "exercises": exercises[i],
+            "reason": (
+                f"Highest risk: {highest['group']} ({highest['level']}); "
+                f"lower-risk options include {', '.join(low_risk)}."
+            ),
+        }
+        for i, day in enumerate(days)
+    ]
     return {"source": "demo", "plan": plan, "disclaimer": DISCLAIMER}
 
 
 def _fallback_report(context: dict) -> dict:
     scores = context["risk_scores"]
     highest = _highest_risk(scores)
-    workouts = context["workout_count_30_days"]
-    low_risk = _lowest_risk_muscles(scores)
+    low_risk = _lowest_risk_groups(scores)
+    sessions = context["session_count_30_days"]
+
     return {
         "source": "demo",
         "title": "Weekly Training Health Report",
         "summary": (
-            f"You logged {workouts} workouts in the recent training window. "
-            f"Your highest current risk area is {highest['muscle_group']} with a "
-            f"{highest['level']} level and score of {highest['score']}."
+            f"You logged {sessions} session(s) in the past 30 days. "
+            f"Highest risk area: {highest['group']} ({highest['level']}, score {highest['score']})."
         ),
         "trend": (
-            "Risk history is generated whenever the dashboard loads. Use repeated "
-            "snapshots over the week to compare whether scores are improving or rising."
+            "Check your aggregate risk score daily to see whether load is "
+            "building or recovering over time."
         ),
         "focus": (
-            f"This week, reduce repeated load on {highest['muscle_group']} and consider "
-            f"training lower-risk areas such as {', '.join(low_risk)}."
+            f"Reduce repeated load on {highest['group']} and consider training "
+            f"lower-risk areas: {', '.join(low_risk)}."
         ),
         "disclaimer": DISCLAIMER,
     }
 
 
-def get_smart_analysis(username: str) -> dict:
-    context = _workout_context(username)
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+async def get_smart_analysis(username: str) -> dict:
+    context = await _workout_context(username)
     prompt = (
         "You are a fitness analytics assistant. Return JSON only with keys: "
         "patterns (array of strings), risk_notes (array of strings), focus_area (string). "
-        "Analyze workout habits, imbalances, repeated muscle load, and risk trends. "
+        "Analyze session habits, muscle imbalances, repeated load, and risk trends. "
         "Do not diagnose injuries. Use this context:\n"
         f"{json.dumps(context, default=str)}"
     )
@@ -257,31 +237,28 @@ def get_smart_analysis(username: str) -> dict:
     return _fallback_analysis(context)
 
 
-def get_workout_plan(username: str) -> dict:
-    context = _workout_context(username)
+async def get_workout_plan(username: str) -> dict:
+    context = await _workout_context(username)
     prompt = (
         "You are a careful fitness planning assistant. Return JSON only with key plan, "
-        "an array of 7 objects with day, focus, exercises array, and reason. Build a "
-        "7-day plan around high-risk muscles using server risk scores. Avoid saying "
-        "the user is injured. Use this context:\n"
+        "an array of 7 objects with day, focus, exercises array, and reason. "
+        "Build a 7-day plan that avoids overloading high-risk muscles. "
+        "Do not say the user is injured. Use this context:\n"
         f"{json.dumps(context, default=str)}"
     )
     ai = _call_gemini(prompt)
     if ai and isinstance(ai.get("plan"), list):
-        return {
-            "source": "gemini",
-            "plan": ai["plan"][:7],
-            "disclaimer": DISCLAIMER,
-        }
+        return {"source": "gemini", "plan": ai["plan"][:7], "disclaimer": DISCLAIMER}
     return _fallback_plan(context)
 
 
-def get_weekly_report(username: str) -> dict:
-    context = _workout_context(username)
+async def get_weekly_report(username: str) -> dict:
+    context = await _workout_context(username)
     prompt = (
-        "You are a coach writing a concise weekly training health report. Return JSON "
-        "only with title, summary, trend, and focus strings. Write 3-4 short report "
-        "paragraphs total across those fields. Do not give medical advice. Use this context:\n"
+        "You are a coach writing a concise weekly training health report. "
+        "Return JSON only with title, summary, trend, and focus strings. "
+        "Write 3-4 short sentences across those fields. No medical advice. "
+        "Use this context:\n"
         f"{json.dumps(context, default=str)}"
     )
     ai = _call_gemini(prompt)

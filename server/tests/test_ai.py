@@ -1,16 +1,19 @@
+import datetime
+
+TODAY = datetime.date.today().isoformat()
+
+
 def _create_user(client, username="alice"):
     client.get(f"/api/users/{username}")
 
 
-def _post_workout(client, username="alice", muscle_group="chest", sets=4, reps=10, intensity=80):
+def _post_session(client, username="alice", groups=None, rpe=7, duration=45):
+    if groups is None:
+        groups = ["chest"]
     return client.post(
         f"/api/workouts/{username}",
-        json={
-            "muscle_group": muscle_group,
-            "sets": sets,
-            "reps": reps,
-            "intensity": intensity,
-        },
+        json={"date": TODAY, "name": "Test", "groups": groups,
+              "rpe": rpe, "duration": duration, "soreness": 5},
     )
 
 
@@ -22,7 +25,7 @@ def test_ai_analysis_requires_existing_user(client):
 
 def test_ai_analysis_returns_patterns_and_disclaimer(client):
     _create_user(client)
-    _post_workout(client, muscle_group="chest")
+    _post_session(client, groups=["chest"])
 
     response = client.get("/api/ai/analyze/alice")
 
@@ -36,7 +39,7 @@ def test_ai_analysis_returns_patterns_and_disclaimer(client):
 
 def test_ai_plan_returns_seven_days(client):
     _create_user(client)
-    _post_workout(client, muscle_group="chest", sets=10, reps=15, intensity=95)
+    _post_session(client, groups=["quads", "hamstrings"], rpe=9)
 
     response = client.get("/api/ai/plan/alice")
 
@@ -49,7 +52,7 @@ def test_ai_plan_returns_seven_days(client):
 
 def test_ai_report_returns_narrative_fields(client):
     _create_user(client)
-    _post_workout(client, muscle_group="quads")
+    _post_session(client, groups=["quads"])
 
     response = client.get("/api/ai/report/alice")
 

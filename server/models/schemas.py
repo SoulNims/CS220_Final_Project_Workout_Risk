@@ -1,79 +1,104 @@
-from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
 MuscleGroup = Literal[
-    "chest",
-    "back",
-    "shoulders",
-    "biceps",
-    "triceps",
-    "quads",
-    "hamstrings",
-    "glutes",
-    "calves",
-    "core",
+    "head", "chest", "abs", "obliques", "upper_back", "lower_back",
+    "glutes", "shoulders_front", "shoulders_rear", "biceps", "triceps",
+    "forearms_l", "forearms_r", "quads", "hamstrings", "calves",
 ]
 
-RiskLevel = Literal["Low", "Moderate", "High", "Critical"]
-RiskColor = Literal["gray", "green", "yellow", "orange", "red"]
-
 MUSCLE_GROUPS: tuple[str, ...] = (
-    "chest",
-    "back",
-    "shoulders",
-    "biceps",
-    "triceps",
-    "quads",
-    "hamstrings",
-    "glutes",
-    "calves",
-    "core",
+    "head", "chest", "abs", "obliques", "upper_back", "lower_back",
+    "glutes", "shoulders_front", "shoulders_rear", "biceps", "triceps",
+    "forearms_l", "forearms_r", "quads", "hamstrings", "calves",
 )
 
+RiskLevel = Literal["none", "low", "mod", "high", "crit"]
+
+
+# ── Users ────────────────────────────────────────────────────────────────────
 
 class UserResponse(BaseModel):
     username: str
-    created_at: datetime
+    gender: str
+    age: Optional[int] = None
 
 
-class WorkoutCreate(BaseModel):
-    muscle_group: MuscleGroup
-    sets: int = Field(gt=0, le=50)
-    reps: int = Field(gt=0, le=200)
-    intensity: float = Field(ge=0, le=100)
+class UserUpdate(BaseModel):
+    gender: Optional[str] = None
+    age: Optional[int] = None
 
 
-class WorkoutResponse(BaseModel):
+# ── Sessions ─────────────────────────────────────────────────────────────────
+
+class SetRow(BaseModel):
+    rpe: int
+    weight: Optional[str] = None
+    reps: Optional[str] = None
+
+
+class EntryItem(BaseModel):
+    group: str
+    fields: list[str] = []
+    setRows: list[SetRow] = []
+
+
+class SessionCreate(BaseModel):
+    date: str
+    name: str
+    groups: list[MuscleGroup]
+    rpe: int = Field(ge=1, le=10)
+    duration: int = Field(gt=0)
+    soreness: int = Field(ge=1, le=10, default=5)
+    entries: Optional[list[EntryItem]] = None
+
+
+class SessionResponse(BaseModel):
     id: str
     username: str
-    muscle_group: MuscleGroup
-    sets: int
-    reps: int
-    intensity: float
-    logged_at: datetime
+    date: str
+    name: str
+    groups: list[str]
+    rpe: int
+    duration: int
+    soreness: int
+    entries: Optional[list] = None
 
 
-class RiskScore(BaseModel):
-    muscle_group: MuscleGroup
-    score: float
+# ── Risk ─────────────────────────────────────────────────────────────────────
+
+class RiskEntry(BaseModel):
     level: RiskLevel
-    color: RiskColor
+    score: int
 
 
-class RiskSnapshot(BaseModel):
-    timestamp: datetime
-    scores: list[RiskScore]
+class RiskScoreItem(BaseModel):
+    group: str
+    level: RiskLevel
+    score: int
+
+
+class TrendPoint(BaseModel):
+    d: str
+    score: int
+
+
+class StateResponse(BaseModel):
+    loads: dict[str, float]
+    risk: dict[str, RiskEntry]
+    aggregate_score: int
+    trend: list[TrendPoint]
 
 
 class Recommendation(BaseModel):
-    muscle_group: MuscleGroup
-    score: float
+    group: str
     level: RiskLevel
-    color: RiskColor
+    score: int
     message: str
 
+
+# ── AI ───────────────────────────────────────────────────────────────────────
 
 class SmartWorkoutAnalysis(BaseModel):
     source: Literal["gemini", "demo"]

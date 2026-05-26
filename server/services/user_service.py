@@ -1,18 +1,32 @@
-from datetime import datetime, timezone
-
-from store.data_store import store
+from database import get_client, row_to_dict
 
 
-def get_or_create_user(username: str) -> dict:
-    if username not in store.users:
-        store.users[username] = {
-            "username": username,
-            "created_at": datetime.now(timezone.utc),
-        }
-        store.workouts[username] = []
-        store.risk_history[username] = []
-    return store.users[username]
+async def get_or_create_user(username: str) -> dict:
+    db = get_client()
+    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
+    if result.rows:
+        return row_to_dict(result.columns, result.rows[0])
+    await db.execute(
+        "INSERT INTO users (username, gender, age) VALUES (?, ?, ?)",
+        [username, "", None],
+    )
+    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
+    return row_to_dict(result.columns, result.rows[0])
 
 
-def user_exists(username: str) -> bool:
-    return username in store.users
+async def update_user(username: str, gender: str | None, age: int | None) -> dict:
+    db = get_client()
+    if gender is not None:
+        await db.execute("UPDATE users SET gender = ? WHERE username = ?", [gender, username])
+    if age is not None:
+        await db.execute("UPDATE users SET age = ? WHERE username = ?", [age, username])
+    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
+    return row_to_dict(result.columns, result.rows[0])
+
+
+async def user_exists(username: str) -> bool:
+    db = get_client()
+    result = await db.execute(
+        "SELECT username FROM users WHERE username = ?", [username]
+    )
+    return bool(result.rows)

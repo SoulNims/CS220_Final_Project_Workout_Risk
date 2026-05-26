@@ -1,108 +1,62 @@
-from datetime import datetime, timedelta, timezone
+from fastapi import HTTPException
 
-from models.schemas import MUSCLE_GROUPS
-from services.workout_service import ensure_user
-from store.data_store import store
-
-
-def _level_for_score(score: float) -> str:
-    if score >= 75:
-        return "Critical"
-    if score >= 50:
-        return "High"
-    if score >= 25:
-        return "Moderate"
-    return "Low"
+from risk import (
+    MUSCLE_GROUPS, RISK_KEYS, aggregate_score, compute_loads,
+    compute_trend, load_to_risk, make_recommendation,
+)
+from services.user_service import user_exists
+from services.workout_service import get_sessions
 
 
-def _color_for_level(level: str) -> str:
-    return {
-        "Low": "green",
-        "Moderate": "yellow",
-        "High": "orange",
-        "Critical": "red",
-    }[level]
+async def _loads_and_sessions(username: str) -> tuple[dict, list]:
+    if not await user_exists(username):
+        raise HTTPException(404, f"User '{username}' not found")
+    sessions = await get_sessions(username)
+    return compute_loads(sessions), sessions
 
 
-def _message_for(muscle_group: str, level: str) -> str:
-    messages = {
-        "Low": f"{muscle_group.title()} risk is low. Maintain balanced training and recovery.",
-        "Moderate": f"Moderate {muscle_group} load. Watch fatigue and avoid stacking hard sessions.",
-        "High": f"High {muscle_group} load. Reduce intensity and add recovery work.",
-        "Critical": f"Critical {muscle_group} load. Prioritize rest and avoid training this muscle group today.",
+async def get_state(username: str) -> dict:
+    loads, sessions = await _loads_and_sessions(username)
+    risk = {
+        g: {
+            "level": RISK_KEYS[load_to_risk(loads[g])],
+            "score": round(loads[g] / 4 * 100),
+        }
+        for g in MUSCLE_GROUPS
     }
-    return messages[level]
+    return {
+        "loads": loads,
+        "risk": risk,
+        "aggregate_score": aggregate_score(loads),
+        "trend": compute_trend(sessions),
+    }
 
 
-def get_workouts_last_n_days(username: str, days: int = 7) -> list[dict]:
-    ensure_user(username)
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    recent = []
-    for workout in store.workouts[username]:
-        logged_at = workout["logged_at"]
-        if logged_at.tzinfo is None:
-            logged_at = logged_at.replace(tzinfo=timezone.utc)
-        if logged_at >= cutoff:
-            recent.append(workout)
-    return recent
-
-
-def calculate_risk_scores(username: str, save_snapshot: bool = True) -> list[dict]:
-    recent_workouts = get_workouts_last_n_days(username)
-    scores = []
-
-    for muscle_group in MUSCLE_GROUPS:
-        muscle_workouts = [
-            workout
-            for workout in recent_workouts
-            if workout["muscle_group"] == muscle_group
-        ]
-        if not muscle_workouts:
-            score = 0.0
-        else:
-            volume = sum(workout["sets"] * workout["reps"] for workout in muscle_workouts)
-            avg_intensity = sum(workout["intensity"] for workout in muscle_workouts) / len(
-                muscle_workouts
-            )
-            frequency = len(muscle_workouts)
-            score = min(
-                100.0,
-                (volume / 120.0 * 40.0)
-                + (avg_intensity / 100.0 * 40.0)
-                + (frequency / 5.0 * 20.0),
-            )
-
-        rounded = round(score, 2)
-        level = _level_for_score(rounded)
-        color = "gray" if rounded == 0 else _color_for_level(level)
-        scores.append(
-            {
-                "muscle_group": muscle_group,
-                "score": rounded,
-                "level": level,
-                "color": color,
-            }
-        )
-
-    if save_snapshot:
-        store.risk_history[username].append(
-            {"timestamp": datetime.now(timezone.utc), "scores": scores}
-        )
-
-    return scores
-
-
-def get_risk_history(username: str) -> list[dict]:
-    ensure_user(username)
-    return store.risk_history[username]
-
-
-def get_recommendations(username: str) -> list[dict]:
-    scores = calculate_risk_scores(username, save_snapshot=False)
+async def get_risk_scores(username: str) -> list[dict]:
+    loads, _ = await _loads_and_sessions(username)
     return [
         {
-            **score,
-            "message": _message_for(score["muscle_group"], score["level"]),
+            "group": g,
+            "level": RISK_KEYS[load_to_risk(loads[g])],
+            "score": round(loads[g] / 4 * 100),
         }
-        for score in scores
+        for g in MUSCLE_GROUPS
     ]
+
+
+async def get_recommendations(username: str) -> list[dict]:
+    loads, _ = await _loads_and_sessions(username)
+    return [
+        {
+            "group": g,
+            "level": RISK_KEYS[load_to_risk(loads[g])],
+            "score": round(loads[g] / 4 * 100),
+            "message": make_recommendation(g, RISK_KEYS[load_to_risk(loads[g])]),
+        }
+        for g in MUSCLE_GROUPS
+    ]
+
+
+async def get_trend(username: str) -> list[dict]:
+    _, sessions = await _loads_and_sessions(username)
+    return compute_trend(sessions)

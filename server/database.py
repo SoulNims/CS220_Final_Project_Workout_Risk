@@ -42,6 +42,10 @@ async def init_db() -> None:
     ])
 
 
+def row_to_dict(columns, row) -> dict:
+    return {columns[i]: row[i] for i in range(len(columns))}
+
+
 async def close_db() -> None:
     global _client
     if _client:
