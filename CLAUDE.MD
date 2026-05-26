@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-> Read this first. It defines the D4 process, document hierarchy, and v1 scope for Tendon (Injury Risk Predictor). For visual design, colors, and data model — see `design/design-system.md`.
+> **Status: v1 complete — now in v2 (final_project).** v2 is a fullstack web app with a live backend and Gemini API integration. Client deploys to Vercel; backend TBD. For visual design, colors, and data model — see `design/design-system.md`.
 
 ---
 
@@ -115,3 +115,26 @@ Do not add these without an explicit request — treat any ask as a v2 discussio
 - Mobile native apps (web only)
 
 Render deployment is **in scope** — it is the target demo environment.
+
+---
+
+## v2 — final_project
+
+**Status:** Active
+
+**Goal:** Ship a fullstack web app as the CS 220 final project submission.
+
+**What's new in v2:**
+- Live backend (language TBD — pending professor confirmation on Python vs Java)
+- Gemini API integration for AI-powered recommendations (replaces deterministic formula)
+- Client deploys to Vercel
+- Backend deploys to TBD (Render or equivalent)
+
+**Submission requirements:**
+1. Server-side Design Doc
+2. Client-side Design Doc
+3. Server-side Code
+4. Client-side Code
+5. Project `.jar` file (if Java backend is confirmed)
+
+**v2 is done when:** All v1 flows work end-to-end against the live backend, plus Gemini recommendations are returned from the server and rendered on the client.

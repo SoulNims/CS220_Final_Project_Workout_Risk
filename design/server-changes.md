@@ -1,0 +1,28 @@
+# Server Change Log
+
+<!-- Template:
+## YYYY-MM-DD — Short title
+**Files:** list of changed files
+**What:** what changed and why
+-->
+
+## 2026-05-26 — Initial FastAPI backend with SQLite persistence
+**Files:** `server/main.py`, `server/database.py`, `server/models.py`, `server/risk.py`, `server/requirements.txt`
+**What:** Created the FastAPI backend from scratch. Replaced the planned in-memory Python dicts with SQLite for real persistence across server restarts.
+
+Schema: `users` (username, gender, age) and `sessions` (id, username, date, name, groups, rpe, duration, soreness, entries). Groups and entries stored as JSON text columns.
+
+Endpoints:
+- `POST /users` — login or create user
+- `GET /users/{username}` — get user profile
+- `PATCH /users/{username}` — update gender/age
+- `GET /users/{username}/state` — returns loads, per-muscle risk, aggregate score, 14-day trend
+- `GET /users/{username}/sessions` — list all sessions (newest first)
+- `POST /users/{username}/sessions` — add session
+- `PUT /users/{username}/sessions/{id}` — replace session
+- `DELETE /users/{username}/sessions/{id}` — delete session
+- `GET /users/{username}/muscle/{group}` — muscle zoom panel data (load, level, score, recommendation, recent sessions)
+
+Risk logic lives entirely in `risk.py` per D4 Protocol rule #5 (no business logic on client). Deterministic recommendations used; Gemini integration left for v2.
+
+**Next:** Wire the React client to call these endpoints instead of using mock data from `data.js`.
