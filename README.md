@@ -54,10 +54,14 @@ Gemini is optional. To use real Gemini responses, edit the root `.env`:
 ```text
 GEMINI_API_KEY=your_api_key_here
 GEMINI_MODEL=gemini-2.5-flash-lite
+AUTH_SECRET=replace_with_a_long_random_secret
 VITE_API_BASE_URL=http://localhost:8000/api
+TURSO_DATABASE_URL=file:tendon.db
+TURSO_AUTH_TOKEN=
 ```
 
 If `GEMINI_API_KEY` is blank, AI insights run in deterministic demo mode.
+For deployment, set `AUTH_SECRET` to a long random value in Render and use your real Turso URL/token there. Do not put backend secrets in Vercel.
 
 Stop Docker:
 

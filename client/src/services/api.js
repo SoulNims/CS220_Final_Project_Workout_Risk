@@ -1,9 +1,15 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
+function authHeaders() {
+  const token = localStorage.getItem('irp_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders(),
       ...(options.headers || {}),
     },
     ...options,
@@ -29,6 +35,16 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  register: (payload) =>
+    request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  login: (payload) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getUser: (username) => request(`/users/${username}`),
   createWorkout: (username, payload) =>
     request(`/workouts/${username}`, {

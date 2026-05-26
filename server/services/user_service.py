@@ -1,17 +1,12 @@
 from database import get_client, row_to_dict
 
 
-async def get_or_create_user(username: str) -> dict:
+async def get_user(username: str) -> dict:
     db = get_client()
-    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
+    result = await db.execute("SELECT username, gender, age FROM users WHERE username = ?", [username])
     if result.rows:
         return row_to_dict(result.columns, result.rows[0])
-    await db.execute(
-        "INSERT INTO users (username, gender, age) VALUES (?, ?, ?)",
-        [username, "", None],
-    )
-    result = await db.execute("SELECT * FROM users WHERE username = ?", [username])
-    return row_to_dict(result.columns, result.rows[0])
+    return {"username": username, "gender": "", "age": None}
 
 
 async def update_user(username: str, gender: str | None, age: int | None) -> dict:

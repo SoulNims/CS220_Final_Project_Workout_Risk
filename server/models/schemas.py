@@ -25,6 +25,16 @@ class UserResponse(BaseModel):
     age: Optional[int] = None
 
 
+class AuthRequest(BaseModel):
+    username: str = Field(min_length=2, max_length=40)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserResponse
+
+
 class UserUpdate(BaseModel):
     gender: Optional[str] = None
     age: Optional[int] = None

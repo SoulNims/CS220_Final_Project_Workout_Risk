@@ -2,12 +2,15 @@ import { useState } from 'react'
 
 export default function LoginPage({ onLogin, error: serverError, loading }) {
   const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState('login')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) { setError('Please enter a username'); return }
-    onLogin(name.trim())
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    onLogin({ username: name.trim(), password, mode })
   }
 
   return (
@@ -28,6 +31,25 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 22 }}>
+            <button
+              type="button"
+              className={mode === 'login' ? 'btn primary' : 'btn ghost'}
+              onClick={() => { setMode('login'); setError('') }}
+              style={{ justifyContent: 'center' }}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              className={mode === 'register' ? 'btn primary' : 'btn ghost'}
+              onClick={() => { setMode('register'); setError('') }}
+              style={{ justifyContent: 'center' }}
+            >
+              Create account
+            </button>
+          </div>
+
           <div style={{ marginBottom: 22 }}>
             <label className="label">Username</label>
             <input
@@ -40,6 +62,18 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
             />
           </div>
 
+          <div style={{ marginBottom: 22 }}>
+            <label className="label">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              className="input"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            />
+          </div>
+
           {(error || serverError) && (
             <p style={{ color: 'var(--risk-crit)', fontSize: 12.5, marginBottom: 16, marginTop: -8 }}>
               {error || serverError}
@@ -47,7 +81,7 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
           )}
 
           <button type="submit" className="btn primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '11px 16px', fontSize: 14, opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Connecting...' : 'Get Started'}
+            {loading ? 'Connecting...' : mode === 'login' ? 'Sign in' : 'Create secure account'}
           </button>
         </form>
 

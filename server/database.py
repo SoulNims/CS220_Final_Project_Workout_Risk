@@ -24,6 +24,7 @@ async def init_db() -> None:
     await _client.batch([
         """CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
+            password_hash TEXT,
             gender   TEXT NOT NULL DEFAULT '',
             age      INTEGER
         )""",
@@ -40,6 +41,11 @@ async def init_db() -> None:
         )""",
         "CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)",
     ])
+    try:
+        await _client.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+    except Exception:
+        # Column already exists on newer databases.
+        pass
 
 
 def row_to_dict(columns, row) -> dict:

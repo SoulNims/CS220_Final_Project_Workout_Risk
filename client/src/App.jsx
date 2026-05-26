@@ -12,7 +12,9 @@ import { api } from './services/api'
 import { apiWorkoutToSession, riskScoresToLoad } from './muscleMap'
 
 export default function App() {
-  const [username, setUsername] = useState(() => localStorage.getItem('irp_username') || '')
+  const [username, setUsername] = useState(() =>
+    localStorage.getItem('irp_token') ? localStorage.getItem('irp_username') || '' : ''
+  )
   const [gender, setGender] = useState(() => localStorage.getItem('irp_gender') || '')
   const [age, setAge] = useState(() => localStorage.getItem('irp_age') ? parseInt(localStorage.getItem('irp_age'), 10) : null)
   const [theme, setTheme] = useState(() => localStorage.getItem('irp_theme') || 'light')
@@ -31,7 +33,7 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
-    if (!username) return
+    if (!username || !localStorage.getItem('irp_token')) return
     refreshServerState(username)
   }, [username])
 
@@ -51,14 +53,21 @@ export default function App() {
     }
   }
 
-  async function handleLogin(name) {
+  async function handleLogin({ username: name, password, mode }) {
     const cleanName = name.trim()
     if (!cleanName) return
     setStatus({ loading: true, error: '' })
     try {
-      await api.getUser(cleanName)
+      const response = mode === 'register'
+        ? await api.register({ username: cleanName, password })
+        : await api.login({ username: cleanName, password })
+      localStorage.setItem('irp_token', response.token)
       localStorage.setItem('irp_username', cleanName)
+      if (response.user?.gender) localStorage.setItem('irp_gender', response.user.gender)
+      if (response.user?.age != null) localStorage.setItem('irp_age', response.user.age)
       setUsername(cleanName)
+      setGender(response.user?.gender || '')
+      setAge(response.user?.age ?? null)
       setStatus({ loading: false, error: '' })
     } catch (error) {
       setStatus({ loading: false, error: error.message || 'Unable to reach the API server' })
@@ -71,6 +80,7 @@ export default function App() {
   }
 
   function handleLogout() {
+    localStorage.removeItem('irp_token')
     localStorage.removeItem('irp_username')
     localStorage.removeItem('irp_gender')
     localStorage.removeItem('irp_age')

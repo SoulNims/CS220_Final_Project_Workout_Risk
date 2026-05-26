@@ -4,30 +4,35 @@ TODAY = datetime.date.today().isoformat()
 
 
 def _create_user(client, username="alice"):
-    client.get(f"/api/users/{username}")
+    response = client.post(
+        "/api/auth/register",
+        json={"username": username, "password": "password123"},
+    )
+    return {"Authorization": f"Bearer {response.json()['token']}"}
 
 
-def _post_session(client, username="alice", groups=None, rpe=7, duration=45):
+def _post_session(client, username="alice", groups=None, rpe=7, duration=45, headers=None):
     if groups is None:
         groups = ["chest"]
     return client.post(
         f"/api/workouts/{username}",
         json={"date": TODAY, "name": "Test", "groups": groups,
               "rpe": rpe, "duration": duration, "soreness": 5},
+        headers=headers,
     )
 
 
 def test_ai_analysis_requires_existing_user(client):
     response = client.get("/api/ai/analyze/missing")
 
-    assert response.status_code == 404
+    assert response.status_code == 401
 
 
 def test_ai_analysis_returns_patterns_and_disclaimer(client):
-    _create_user(client)
-    _post_session(client, groups=["chest"])
+    headers = _create_user(client)
+    _post_session(client, groups=["chest"], headers=headers)
 
-    response = client.get("/api/ai/analyze/alice")
+    response = client.get("/api/ai/analyze/alice", headers=headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -38,10 +43,10 @@ def test_ai_analysis_returns_patterns_and_disclaimer(client):
 
 
 def test_ai_plan_returns_seven_days(client):
-    _create_user(client)
-    _post_session(client, groups=["quads", "hamstrings"], rpe=9)
+    headers = _create_user(client)
+    _post_session(client, groups=["quads", "hamstrings"], rpe=9, headers=headers)
 
-    response = client.get("/api/ai/plan/alice")
+    response = client.get("/api/ai/plan/alice", headers=headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -51,10 +56,10 @@ def test_ai_plan_returns_seven_days(client):
 
 
 def test_ai_report_returns_narrative_fields(client):
-    _create_user(client)
-    _post_session(client, groups=["quads"])
+    headers = _create_user(client)
+    _post_session(client, groups=["quads"], headers=headers)
 
-    response = client.get("/api/ai/report/alice")
+    response = client.get("/api/ai/report/alice", headers=headers)
 
     assert response.status_code == 200
     body = response.json()

@@ -1,16 +1,33 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 
-from models.schemas import UserResponse, UserUpdate
-from services.user_service import get_or_create_user, update_user
+from models.schemas import AuthRequest, AuthResponse, UserResponse, UserUpdate
+from services.auth_service import login_user, register_user, require_user_access
+from services.user_service import get_user, update_user
 
 router = APIRouter()
 
 
+@router.post("/auth/register", response_model=AuthResponse, status_code=201)
+async def register(body: AuthRequest):
+    return await register_user(body.username, body.password)
+
+
+@router.post("/auth/login", response_model=AuthResponse)
+async def login(body: AuthRequest):
+    return await login_user(body.username, body.password)
+
+
 @router.get("/users/{username}", response_model=UserResponse)
-async def get_user(username: str):
-    return await get_or_create_user(username)
+async def read_user(username: str, authorization: str | None = Header(default=None)):
+    await require_user_access(username, authorization)
+    return await get_user(username)
 
 
 @router.patch("/users/{username}", response_model=UserResponse)
-async def patch_user(username: str, body: UserUpdate):
+async def patch_user(
+    username: str,
+    body: UserUpdate,
+    authorization: str | None = Header(default=None),
+):
+    await require_user_access(username, authorization)
     return await update_user(username, body.gender, body.age)

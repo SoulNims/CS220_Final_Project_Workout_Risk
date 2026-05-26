@@ -1,34 +1,41 @@
 import { MUSCLE_LABEL } from './data'
 
 export const FRONTEND_TO_API_MUSCLE = {
+  head: 'head',
   chest: 'chest',
-  abs: 'core',
-  obliques: 'core',
-  upper_back: 'back',
-  lower_back: 'back',
+  abs: 'abs',
+  obliques: 'obliques',
+  upper_back: 'upper_back',
+  lower_back: 'lower_back',
   glutes: 'glutes',
-  shoulders_front: 'shoulders',
-  shoulders_rear: 'shoulders',
+  shoulders_front: 'shoulders_front',
+  shoulders_rear: 'shoulders_rear',
   biceps: 'biceps',
   triceps: 'triceps',
-  forearms_l: 'biceps',
-  forearms_r: 'biceps',
+  forearms_l: 'forearms_l',
+  forearms_r: 'forearms_r',
   quads: 'quads',
   hamstrings: 'hamstrings',
   calves: 'calves',
 }
 
 export const API_TO_FRONTEND_MUSCLES = {
+  head: ['head'],
   chest: ['chest'],
-  back: ['upper_back', 'lower_back'],
-  shoulders: ['shoulders_front', 'shoulders_rear'],
-  biceps: ['biceps', 'forearms_l', 'forearms_r'],
+  abs: ['abs'],
+  obliques: ['obliques'],
+  upper_back: ['upper_back'],
+  lower_back: ['lower_back'],
+  shoulders_front: ['shoulders_front'],
+  shoulders_rear: ['shoulders_rear'],
+  biceps: ['biceps'],
+  forearms_l: ['forearms_l'],
+  forearms_r: ['forearms_r'],
   triceps: ['triceps'],
   quads: ['quads'],
   hamstrings: ['hamstrings'],
   glutes: ['glutes'],
   calves: ['calves'],
-  core: ['abs', 'obliques'],
 }
 
 export function apiScoreToLoad(score) {
@@ -46,7 +53,7 @@ export function riskScoresToLoad(scores) {
 }
 
 export function frontendToApiMuscle(group) {
-  return FRONTEND_TO_API_MUSCLE[group] || 'core'
+  return FRONTEND_TO_API_MUSCLE[group] || 'abs'
 }
 
 export function apiWorkoutToSession(session) {
@@ -63,18 +70,18 @@ export function apiWorkoutToSession(session) {
   }
 }
 
-export function sessionEntryToWorkoutPayload(entry, session) {
-  const setRows = Array.isArray(entry.setRows) && entry.setRows.length
-    ? entry.setRows
-    : [{ rpe: session.rpe }]
-  const reps = setRows
-    .map((row) => Number.parseInt(row.reps, 10))
-    .find((value) => Number.isFinite(value) && value > 0) || 10
-  const avgRpe = setRows.reduce((sum, row) => sum + Number(row.rpe || session.rpe || 7), 0) / setRows.length
+export function sessionToWorkoutPayload(session) {
   return {
-    muscle_group: frontendToApiMuscle(entry.group),
-    sets: setRows.length,
-    reps,
-    intensity: Math.max(0, Math.min(100, Math.round(avgRpe * 10))),
+    date: session.date,
+    name: session.name || 'Workout',
+    groups: [...new Set((session.groups || []).map(frontendToApiMuscle))],
+    rpe: Math.max(1, Math.min(10, Number(session.rpe || 7))),
+    duration: Math.max(1, Number(session.duration || 45)),
+    soreness: Math.max(1, Math.min(10, Number(session.soreness || 5))),
+    entries: (session.entries || []).map((entry) => ({
+      group: frontendToApiMuscle(entry.group),
+      fields: entry.fields || [],
+      setRows: entry.setRows || [],
+    })),
   }
 }
