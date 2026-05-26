@@ -29,25 +29,6 @@ export function loadToRisk(load) {
   return 4
 }
 
-export const SAMPLE_SESSIONS = [
-  {
-    id: 's9', date: '2026-05-25', name: 'Morning workout',
-    groups: ['chest', 'triceps', 'shoulders_front'], rpe: 7, duration: 45, soreness: 5,
-    entries: [
-      { group: 'chest', setRows: [{ rpe: 7, weight: '80kg', reps: '8' }, { rpe: 8, weight: '85kg', reps: '7' }, { rpe: 8, weight: '85kg', reps: '6' }], fields: ['weight', 'reps'] },
-      { group: 'triceps', setRows: [{ rpe: 6 }, { rpe: 7 }, { rpe: 7 }], fields: [] },
-      { group: 'shoulders_front', setRows: [{ rpe: 7 }, { rpe: 8 }, { rpe: 8 }], fields: [] },
-    ],
-  },
-  { id: 's8', date: '2026-05-24', name: 'Push day', groups: ['chest', 'triceps', 'shoulders_front'], rpe: 8, duration: 62, soreness: 6 },
-  { id: 's7', date: '2026-05-23', name: 'Climbing — bouldering', groups: ['forearms_l', 'forearms_r', 'biceps', 'upper_back'], rpe: 9, duration: 95, soreness: 8 },
-  { id: 's6', date: '2026-05-21', name: 'Leg day', groups: ['quads', 'glutes', 'calves'], rpe: 7, duration: 55, soreness: 5 },
-  { id: 's5', date: '2026-05-20', name: 'Pull day', groups: ['upper_back', 'biceps', 'shoulders_rear'], rpe: 7, duration: 58, soreness: 4 },
-  { id: 's4', date: '2026-05-18', name: 'Climbing — lead', groups: ['forearms_l', 'forearms_r', 'biceps'], rpe: 9, duration: 110, soreness: 7 },
-  { id: 's3', date: '2026-05-17', name: 'Mobility + core', groups: ['abs', 'obliques', 'lower_back'], rpe: 4, duration: 35, soreness: 2 },
-  { id: 's2', date: '2026-05-15', name: 'Push day', groups: ['chest', 'triceps', 'shoulders_front'], rpe: 8, duration: 60, soreness: 6 },
-  { id: 's1', date: '2026-05-14', name: 'Easy run', groups: ['quads', 'calves'], rpe: 5, duration: 42, soreness: 3 },
-]
 
 export const TREND = [
   { d: 'May 11', score: 38 },
