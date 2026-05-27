@@ -6,6 +6,10 @@
 **What:** what changed and why
 -->
 
+## 2026-05-27 — Add server-side design document
+**Files:** `design/server-design.md`
+**What:** Created `server-design.md` — the canonical server-side design doc for the CS 220 submission. Covers stack, file structure, DB schema, auth (PBKDF2 + custom HMAC token), all API endpoints with request/response shapes, risk engine math, AI/Gemini integration, environment variables, deployment, and key design decisions. Derived from the actual implemented code.
+
 ## 2026-05-26 — Security question password reset
 **Files:** `server/database.py`, `server/models/schemas.py`, `server/services/auth_service.py`, `server/routers/users.py`
 **What:** Added security-question-based password recovery. Two new columns on `users`: `security_question TEXT` and `security_answer_hash TEXT` (answer normalized to lowercase+trimmed before pbkdf2 hashing). `RegisterRequest` replaces `AuthRequest` for `/auth/register` — includes `security_question` and `security_answer` fields. Two new endpoints: `GET /auth/security-question/{username}` returns the stored question without requiring auth; `POST /auth/forgot-password` verifies the answer and returns a fresh token + updates the password. Existing accounts without a security question get a clear 400 error pointing them to contact support.

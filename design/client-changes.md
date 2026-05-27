@@ -6,6 +6,14 @@
 **What:** what changed and why
 -->
 
+## 2026-05-26 — Add client-side design document for final project submission
+**Files:** `design/client-design.md` (new)
+**What:** Created comprehensive client-side design document covering tech stack, component tree, state management, all screens, API service layer, design system tokens, layout, auth flow, AI integration, localStorage strategy, and deployment. Written for CS 220 final project submission.
+
+## 2026-05-26 — Mobile responsiveness: sidebar overlay + Settings access
+**Files:** `src/App.jsx`, `src/components/Sidebar.jsx`, `src/index.css`
+**What:** On mobile (≤768px) the sidebar was hidden and Settings was unreachable. Added a "More ≡" button to the mobile tab bar that opens the full sidebar as a fixed full-screen overlay (using the existing `.mob-sidebar-visible` CSS class). Sidebar now accepts `onCloseMobile` prop; all nav item clicks, "Log a workout", and the new ✕ close button dismiss the overlay. Also reduced page title font-size to 28px and adjusted main-inner padding on mobile.
+
 ## 2026-05-26 — Security question password reset UI
 **Files:** `client/src/components/LoginPage.jsx`, `client/src/services/api.js`, `client/src/App.jsx`
 **What:** Added forgot-password flow and security question capture on registration. `LoginPage` has a new "Forgot password?" link (login mode only) that opens a two-step flow: (1) enter username → server fetches and displays their security question; (2) enter answer + new password → server verifies and logs you in automatically. Register mode now shows a security question dropdown (4 preset options) and an answer field. `api.js` gained `getSecurityQuestion` and `forgotPassword` helpers. `App.jsx` gained `handleForgotPassword` which is passed to `LoginPage` as `onForgotPassword`; `handleLogin` now forwards `security_question`/`security_answer` on register.

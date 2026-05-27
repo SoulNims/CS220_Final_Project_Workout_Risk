@@ -308,6 +308,8 @@ button { font-family: inherit; cursor: pointer; }
 .user-sub { font-size: 11.5px; color: var(--text-muted); }
 
 /* Mobile responsive */
+.mob-sidebar-close { display: none; }
+
 @media (max-width: 768px) {
   .sidebar {
     display: none;
@@ -318,6 +320,12 @@ button { font-family: inherit; cursor: pointer; }
     inset: 0;
     width: 100%;
     z-index: 50;
+    overflow-y: auto;
+  }
+  .mob-sidebar-close {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 8px 0;
   }
   .main-inner {
     padding: 24px 20px 100px;
@@ -325,6 +333,8 @@ button { font-family: inherit; cursor: pointer; }
   .mob-tab-bar {
     display: flex !important;
   }
+  .page-title { font-size: 28px; }
+  .main-inner { padding: 24px 16px 100px; }
 }
 @media (min-width: 769px) {
   .mob-tab-bar { display: none !important; }
