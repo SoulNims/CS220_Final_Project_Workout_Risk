@@ -7,21 +7,22 @@ import {
   aggregateScore, scoreLabel, INITIAL_LOAD, RISK_COLORS,
   RISK_LABELS, MUSCLE_LABEL, loadToRisk, formatDate,
 } from '../data'
+import { DEFAULT_TIME_ZONE, zonedDateInputValue, zonedHour } from '../time'
 
-function timeGreeting(date = new Date()) {
-  const hour = date.getHours()
+function timeGreeting(date = new Date(), timeZone = DEFAULT_TIME_ZONE) {
+  const hour = zonedHour(date, timeZone)
   if (hour < 12) return 'Good morning'
   if (hour < 17) return 'Good afternoon'
   if (hour < 21) return 'Good evening'
   return 'Goodnight'
 }
 
-export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage, displayName }) {
+export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage, displayName, timeZone }) {
   const score = aggregateScore(load)
   const sl = scoreLabel(score)
   const firstName = displayName?.trim().split(/\s+/)[0] || ''
 
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = zonedDateInputValue(new Date(), timeZone)
   const todays = sessions.filter(s => s.date === todayIso)
 
   const weekSessions = sessions.filter(s => {
@@ -41,7 +42,7 @@ export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditW
         <span className="crumb" style={{ color: 'var(--text)' }}>Dashboard</span>
       </div>
 
-      <h1 className="page-title">{timeGreeting()}{firstName ? `, ${firstName}` : ''}.</h1>
+      <h1 className="page-title">{timeGreeting(new Date(), timeZone)}{firstName ? `, ${firstName}` : ''}.</h1>
       <p className="page-subtitle">
         Your last session was yesterday — heavy push day.
       </p>

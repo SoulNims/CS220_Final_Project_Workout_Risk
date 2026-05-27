@@ -11,6 +11,7 @@ import SettingsModal from './components/SettingsModal'
 import { TREND } from './data'
 import { api } from './services/api'
 import { apiWorkoutToSession, riskScoresToLoad } from './muscleMap'
+import { getSavedTimeZone, zonedDateInputValue, zonedHour } from './time'
 
 export default function App() {
   const [username, setUsername] = useState(() =>
@@ -19,6 +20,7 @@ export default function App() {
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('irp_display_name') || '')
   const [gender, setGender] = useState(() => localStorage.getItem('irp_gender') || '')
   const [age, setAge] = useState(() => localStorage.getItem('irp_age') ? parseInt(localStorage.getItem('irp_age'), 10) : null)
+  const [timeZone, setTimeZone] = useState(getSavedTimeZone)
   const [theme, setTheme] = useState(() => localStorage.getItem('irp_theme') || 'light')
   const [showSettings, setShowSettings] = useState(false)
   const [page, setPage] = useState('dashboard')
@@ -109,9 +111,10 @@ export default function App() {
     }
   }
 
-  function handleSaveSettings(g, a) {
+  function handleSaveSettings(g, a, tz) {
     if (g) { localStorage.setItem('irp_gender', g); setGender(g) }
     if (a != null) { localStorage.setItem('irp_age', a); setAge(a) }
+    if (tz) { localStorage.setItem('irp_time_zone', tz); setTimeZone(tz) }
   }
 
   function handleLogout() {
@@ -141,7 +144,7 @@ export default function App() {
   const closeModal = () => { setShowAdd(false); setEditing(null) }
 
   function onLogMuscle(muscleId) {
-    const todayIso = new Date().toISOString().slice(0, 10)
+    const todayIso = zonedDateInputValue(new Date(), timeZone)
     const todaySession = sessions.find(s => s.date === todayIso)
     if (todaySession) {
       const groups = todaySession.groups.includes(muscleId)
@@ -158,7 +161,7 @@ export default function App() {
       setEditing({ ...todaySession, groups, entries })
       setShowAdd(true)
     } else {
-      const h = new Date().getHours()
+      const h = zonedHour(new Date(), timeZone)
       const name = h < 5 ? 'Late-night workout' : h < 12 ? 'Morning workout'
         : h < 17 ? 'Afternoon workout' : h < 21 ? 'Evening workout' : 'Night workout'
       setEditing({
@@ -246,6 +249,7 @@ export default function App() {
               onLogMuscle={onLogMuscle}
               setPage={setPage}
               displayName={displayName}
+              timeZone={timeZone}
             />
           )}
           {page === 'log' && (
@@ -256,7 +260,7 @@ export default function App() {
               onDelete={onDelete}
             />
           )}
-          {page === 'history' && <History sessions={sessions} trend={TREND} />}
+          {page === 'history' && <History sessions={sessions} trend={TREND} timeZone={timeZone} />}
           {page === 'insights' && (
             <Insights
               load={load}
@@ -310,6 +314,7 @@ export default function App() {
         editing={editing}
         onClose={closeModal}
         onSubmit={onSaveWorkout}
+        timeZone={timeZone}
       />
 
       <SettingsModal
@@ -318,6 +323,7 @@ export default function App() {
         displayName={displayName}
         gender={gender}
         age={age}
+        timeZone={timeZone}
         onSave={handleSaveSettings}
         onClose={() => setShowSettings(false)}
         onLogout={handleLogout}

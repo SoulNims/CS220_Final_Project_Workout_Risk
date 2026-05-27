@@ -1,14 +1,27 @@
 import { useState } from 'react'
 import { IconChev } from '../icons'
 import { INITIAL_LOAD, RISK_COLORS, MUSCLE_LABEL, loadToRisk, formatDate } from '../data'
+import { DEFAULT_TIME_ZONE, zonedDateInputValue } from '../time'
 
-export default function History({ sessions, trend }) {
-  const today = new Date()
+function localDateInputValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateFromInputValue(value) {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+export default function History({ sessions, trend, timeZone = DEFAULT_TIME_ZONE }) {
+  const today = dateFromInputValue(zonedDateInputValue(new Date(), timeZone))
   const days = []
   for (let i = 83; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(today.getDate() - i)
-    const iso = d.toISOString().slice(0, 10)
+    const iso = localDateInputValue(d)
     const sess = sessions.filter(s => s.date === iso)
     let risk = 0
     if (sess.length) {

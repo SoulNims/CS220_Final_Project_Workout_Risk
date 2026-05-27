@@ -1,13 +1,15 @@
 import { useState } from 'react'
+import { DEFAULT_TIME_ZONE, TIME_ZONE_OPTIONS } from '../time'
 
-export default function SettingsModal({ open, username, displayName, gender, age, onSave, onClose, onLogout }) {
+export default function SettingsModal({ open, username, displayName, gender, age, timeZone = DEFAULT_TIME_ZONE, onSave, onClose, onLogout }) {
   const [localGender, setLocalGender] = useState(gender || '')
   const [localAge, setLocalAge] = useState(age || '')
+  const [localTimeZone, setLocalTimeZone] = useState(timeZone)
 
   if (!open) return null
 
   function handleSave() {
-    onSave(localGender, localAge ? parseInt(localAge, 10) : null)
+    onSave(localGender, localAge ? parseInt(localAge, 10) : null, localTimeZone)
     onClose()
   }
 
@@ -43,6 +45,21 @@ export default function SettingsModal({ open, username, displayName, gender, age
             value={localAge}
             onChange={e => setLocalAge(e.target.value)}
           />
+        </div>
+
+        {/* Time zone */}
+        <div style={{ marginBottom: 20 }}>
+          <label className="label">Time zone</label>
+          <select
+            className="input"
+            value={localTimeZone}
+            onChange={e => setLocalTimeZone(e.target.value)}
+            style={{ cursor: 'pointer' }}
+          >
+            {TIME_ZONE_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
         </div>
 
         {/* Gender */}

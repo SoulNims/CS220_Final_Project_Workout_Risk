@@ -4,9 +4,10 @@ import {
   IconHistory, IconUser, IconPlus, IconCheck, IconChev,
 } from '../icons'
 import { MUSCLE_LABEL } from '../data'
+import { DEFAULT_TIME_ZONE, zonedDateInputValue, zonedHour } from '../time'
 
-function timeOfDayName(d = new Date()) {
-  const h = d.getHours()
+function timeOfDayName(d = new Date(), timeZone = DEFAULT_TIME_ZONE) {
+  const h = zonedHour(d, timeZone)
   if (h < 5)  return 'Late-night workout'
   if (h < 12) return 'Morning workout'
   if (h < 17) return 'Afternoon workout'
@@ -14,19 +15,19 @@ function timeOfDayName(d = new Date()) {
   return 'Night workout'
 }
 
-export default function AddWorkoutModal({ open, onClose, onSubmit, editing }) {
+export default function AddWorkoutModal({ open, onClose, onSubmit, editing, timeZone = DEFAULT_TIME_ZONE }) {
   const isEdit = !!(editing && editing.id)
-  const [name, setName] = useState(timeOfDayName())
+  const [name, setName] = useState(() => timeOfDayName(new Date(), timeZone))
   const [entries, setEntries] = useState([])
   const [rpe, setRpe] = useState(7)
   const [duration, setDuration] = useState(60)
   const [soreness, setSoreness] = useState(4)
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => zonedDateInputValue(new Date(), timeZone))
 
   useEffect(() => {
     if (!open) return
     if (editing) {
-      setName(editing.name || timeOfDayName())
+      setName(editing.name || timeOfDayName(new Date(), timeZone))
       const reconstructed = editing.entries
         ? editing.entries.map(e => {
             const fields = e.fields || []
@@ -49,13 +50,13 @@ export default function AddWorkoutModal({ open, onClose, onSubmit, editing }) {
       setRpe(editing.rpe ?? 7)
       setDuration(editing.duration ?? 60)
       setSoreness(editing.soreness ?? 4)
-      setDate(editing.date || new Date().toISOString().slice(0, 10))
+      setDate(editing.date || zonedDateInputValue(new Date(), timeZone))
     } else {
-      setName(timeOfDayName()); setEntries([])
+      setName(timeOfDayName(new Date(), timeZone)); setEntries([])
       setRpe(7); setDuration(60); setSoreness(4)
-      setDate(new Date().toISOString().slice(0, 10))
+      setDate(zonedDateInputValue(new Date(), timeZone))
     }
-  }, [open, editing])
+  }, [open, editing, timeZone])
 
   if (!open) return null
 
