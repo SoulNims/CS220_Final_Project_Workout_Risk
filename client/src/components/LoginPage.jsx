@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 const SECURITY_QUESTIONS = [
-  'What was the name of your first gym?',
+  'What was the name of your high school?',
   'What is your favorite exercise?',
   'What city did you grow up in?',
   'What is your pet\'s name?',
