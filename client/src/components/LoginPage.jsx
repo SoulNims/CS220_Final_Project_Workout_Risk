@@ -73,7 +73,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
   }
 
   const cardStyle = {
-    background: 'var(--bg-elev)',
+    background: 'transparent',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-lg)',
     padding: 32,
