@@ -11,7 +11,7 @@ A fullstack web app where gym users log workouts and see an interactive human bo
 1. Register with email + password (or sign in if you have an account)
 2. See a body avatar — all 16 muscle groups are color-coded from gray (no data) to red (critical) based on your recent training load
 3. Log a workout: pick muscle groups, set RPE, duration, soreness, and optionally add per-exercise set rows
-4. Click any muscle on the avatar to open a detail panel with a risk score, recommendation, and AI-generated coaching insight
+4. Click any muscle on the avatar to see its risk score and recommendation
 5. Browse your full workout history, a 14-day risk trend chart, and a calendar view of training days
 6. Write private training notes that persist with your account
 
@@ -21,8 +21,9 @@ A fullstack web app where gym users log workouts and see an interactive human bo
 
 | Layer | Tech |
 |---|---|
-| Frontend | React 19, Vite, Tailwind CSS 4, react-router-dom v7 |
-| 3D Avatar | Three.js, @react-three/fiber, @react-three/drei |
+| Frontend | React 19, Vite 8, CSS custom properties (Tailwind base layer only) |
+| Avatar | Interactive SVG body map (front + back views), color-coded by risk level |
+| Login shader | Three.js + @react-three/fiber (WebGL animated background) |
 | Backend | Python 3.11+, FastAPI, Pydantic v2, Uvicorn |
 | Database | Turso (hosted libSQL / SQLite-compatible) |
 | AI | Google Gemini API (`gemini-2.5-flash-lite`) with demo-mode fallback |
@@ -350,8 +351,6 @@ The test suite spins up an isolated in-memory SQLite database — no network or 
 **`npm install` fails** — run it from inside `client/`, not the project root.
 
 **Port conflict** — kill whatever holds port 5173 or run `npm run dev -- --port 3000`.
-
-**3D avatar doesn't appear** — the `.glb` model lives in `client/public/`. Verify it wasn't accidentally deleted.
 
 **AI endpoints return demo responses** — expected when `GEMINI_API_KEY` is blank. Set a real key in `.env` to get live Gemini responses.
 
