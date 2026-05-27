@@ -8,9 +8,18 @@ import {
   RISK_LABELS, MUSCLE_LABEL, loadToRisk, formatDate,
 } from '../data'
 
+function timeGreeting(date = new Date()) {
+  const hour = date.getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  if (hour < 21) return 'Good evening'
+  return 'Goodnight'
+}
+
 export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage, displayName }) {
   const score = aggregateScore(load)
   const sl = scoreLabel(score)
+  const firstName = displayName?.trim().split(/\s+/)[0] || ''
 
   const todayIso = new Date().toISOString().slice(0, 10)
   const todays = sessions.filter(s => s.date === todayIso)
@@ -32,7 +41,7 @@ export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditW
         <span className="crumb" style={{ color: 'var(--text)' }}>Dashboard</span>
       </div>
 
-      <h1 className="page-title">Good morning{displayName ? `, ${displayName}` : ''}.</h1>
+      <h1 className="page-title">{timeGreeting()}{firstName ? `, ${firstName}` : ''}.</h1>
       <p className="page-subtitle">
         Your last session was yesterday — heavy push day.
       </p>
