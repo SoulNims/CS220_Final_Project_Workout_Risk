@@ -50,9 +50,9 @@ export default function SettingsModal({ open, username, displayName, gender, age
           <label className="label">Body type (for avatar)</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {[
-              { value: 'male',   label: 'Male',   emoji: '🧍‍♂️' },
-              { value: 'female', label: 'Female', emoji: '🧍‍♀️' },
-              { value: 'other',  label: 'Other',  emoji: '🧍' },
+              { value: 'male',   label: 'Male' },
+              { value: 'female', label: 'Female' },
+              { value: 'other',  label: 'Other' },
             ].map(opt => (
               <button
                 key={opt.value}
@@ -70,7 +70,6 @@ export default function SettingsModal({ open, username, displayName, gender, age
                   fontFamily: 'inherit',
                 }}
               >
-                <span style={{ fontSize: 22 }}>{opt.emoji}</span>
                 <span style={{ fontSize: 12, fontWeight: 500 }}>{opt.label}</span>
               </button>
             ))}
