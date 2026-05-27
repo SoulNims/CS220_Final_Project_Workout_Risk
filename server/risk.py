@@ -41,16 +41,53 @@ def session_bump(rpe: int) -> float:
     return 0.3 + (rpe / 10) * 0.6
 
 
+def volume_factor(total_reps: int | None) -> float:
+    if total_reps is None:
+        return 1.0
+    return max(0.5, min(1.75, total_reps / 30))
+
+
+def session_bump_with_reps(rpe: int, total_reps: int | None) -> float:
+    return session_bump(rpe) * volume_factor(total_reps)
+
+
 def _parse_groups(raw) -> list[str]:
     return raw if isinstance(raw, list) else json.loads(raw)
+
+
+def _parse_entries(raw) -> list[dict]:
+    if not raw:
+        return []
+    return raw if isinstance(raw, list) else json.loads(raw)
+
+
+def _row_reps(row: dict) -> int:
+    # The current set UI stores the displayed reps value in the historical
+    # `rpe` field. Prefer an explicit `reps` value when older entries have it.
+    value = row.get("reps", row.get("rpe", 0))
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def total_reps_for_group(session: dict, group: str) -> int | None:
+    entries = _parse_entries(session.get("entries"))
+    matching = [entry for entry in entries if entry.get("group") == group]
+    if not matching:
+        return None
+    total = 0
+    for entry in matching:
+        total += sum(_row_reps(row) for row in entry.get("setRows", []))
+    return total
 
 
 def compute_loads(sessions: list) -> dict[str, float]:
     loads: dict[str, float] = {g: 0.0 for g in MUSCLE_GROUPS}
     for s in sessions:
-        bump = session_bump(s["rpe"])
         for g in _parse_groups(s["groups"]):
             if g in loads:
+                bump = session_bump_with_reps(s["rpe"], total_reps_for_group(s, g))
                 loads[g] = min(4.0, loads[g] + bump)
     return loads
 

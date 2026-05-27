@@ -29,6 +29,28 @@ def _post_session(client, username="alice", groups=None, rpe=7, duration=45, hea
     )
 
 
+def _post_session_with_reps(client, username="alice", group="chest", rpe=7, reps=None, headers=None):
+    if reps is None:
+        reps = [10, 10, 10]
+    return client.post(
+        f"/api/workouts/{username}",
+        json={
+            "date": TODAY,
+            "name": "Rep test",
+            "groups": [group],
+            "rpe": rpe,
+            "duration": 45,
+            "soreness": 5,
+            "entries": [{
+                "group": group,
+                "fields": [],
+                "setRows": [{"rpe": value} for value in reps],
+            }],
+        },
+        headers=headers,
+    )
+
+
 def test_risk_unknown_user_returns_404(client):
     response = client.get("/api/risk/missing")
 
@@ -61,6 +83,18 @@ def test_logged_session_increases_matching_muscle_risk(client):
     assert scores["chest"]["score"] > 0
     assert scores["chest"]["level"] != "none"
     assert scores["quads"]["score"] == 0
+
+
+def test_higher_reps_increase_risk_at_same_rpe(client):
+    low_headers = _create_user(client, username="lowrep")
+    high_headers = _create_user(client, username="highrep")
+    _post_session_with_reps(client, username="lowrep", reps=[5, 5, 5], rpe=7, headers=low_headers)
+    _post_session_with_reps(client, username="highrep", reps=[15, 15, 15], rpe=7, headers=high_headers)
+
+    low_scores = {item["group"]: item for item in client.get("/api/risk/lowrep", headers=low_headers).json()}
+    high_scores = {item["group"]: item for item in client.get("/api/risk/highrep", headers=high_headers).json()}
+
+    assert high_scores["chest"]["score"] > low_scores["chest"]["score"]
 
 
 def test_state_endpoint_returns_full_snapshot(client):
