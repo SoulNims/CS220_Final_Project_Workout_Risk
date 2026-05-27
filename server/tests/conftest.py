@@ -30,6 +30,7 @@ def reset_db():
     # Use sqlite3 directly — the local file: URL is a plain SQLite file
     if Path(_TEST_DB).exists():
         conn = sqlite3.connect(_TEST_DB)
+        conn.execute("DELETE FROM notes")
         conn.execute("DELETE FROM sessions")
         conn.execute("DELETE FROM users")
         conn.commit()

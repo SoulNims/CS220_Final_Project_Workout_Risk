@@ -53,6 +53,12 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getUser: (username) => request(`/users/${username}`),
+  getNotes: (username) => request(`/users/${username}/notes`),
+  saveNotes: (username, body) =>
+    request(`/users/${username}/notes`, {
+      method: 'PUT',
+      body: JSON.stringify({ body }),
+    }),
   createWorkout: (username, payload) =>
     request(`/workouts/${username}`, {
       method: 'POST',

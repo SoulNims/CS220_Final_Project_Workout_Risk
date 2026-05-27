@@ -60,6 +60,16 @@ class UserUpdate(BaseModel):
     age: Optional[int] = None
 
 
+class NoteResponse(BaseModel):
+    username: str
+    body: str = ""
+    updated_at: Optional[str] = None
+
+
+class NoteUpdate(BaseModel):
+    body: str = Field(default="", max_length=5000)
+
+
 # ── Sessions ─────────────────────────────────────────────────────────────────
 
 class SetRow(BaseModel):

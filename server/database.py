@@ -44,6 +44,11 @@ async def init_db() -> None:
             soreness INTEGER NOT NULL DEFAULT 5,
             entries  TEXT
         )""",
+        """CREATE TABLE IF NOT EXISTS notes (
+            username   TEXT PRIMARY KEY REFERENCES users(username),
+            body       TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )""",
         "CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)",
     ])
     for migration in [

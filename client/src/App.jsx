@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard'
 import WorkoutsLog from './components/WorkoutsLog'
 import History from './components/History'
 import Insights from './components/Insights'
+import Notes from './components/Notes'
 import AddWorkoutModal from './components/AddWorkoutModal'
 import SettingsModal from './components/SettingsModal'
 import { TREND } from './data'
@@ -265,6 +266,7 @@ export default function App() {
               displayName={displayName}
             />
           )}
+          {page === 'notes' && <Notes username={username} />}
         </div>
       </main>
 

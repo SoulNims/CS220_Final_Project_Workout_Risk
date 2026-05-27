@@ -13,6 +13,8 @@ def _register(client, email="alice@example.com", password="password123"):
             "first_name": "Alice",
             "last_name": "Runner",
             "password": password,
+            "security_question": "What is your favorite exercise?",
+            "security_answer": "Squat",
         },
     )
     token = response.json()["token"]
@@ -27,6 +29,8 @@ def test_register_creates_user_and_token(client):
             "first_name": "Alice",
             "last_name": "Runner",
             "password": "password123",
+            "security_question": "What is your favorite exercise?",
+            "security_answer": "Squat",
         },
     )
 
@@ -80,10 +84,42 @@ def test_register_existing_user_is_rejected(client):
             "first_name": "Alice",
             "last_name": "Runner",
             "password": "password123",
+            "security_question": "What is your favorite exercise?",
+            "security_answer": "Squat",
         },
     )
 
     assert response.status_code == 409
+
+
+def test_notes_are_private_and_persist_for_user(client):
+    headers = _register(client)
+
+    empty = client.get("/api/users/alice/notes", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json()["body"] == ""
+
+    saved = client.put(
+        "/api/users/alice/notes",
+        json={"body": "Left knee felt tight after squats."},
+        headers=headers,
+    )
+
+    assert saved.status_code == 200
+    assert saved.json()["body"] == "Left knee felt tight after squats."
+
+    loaded = client.get("/api/users/alice/notes", headers=headers)
+    assert loaded.status_code == 200
+    assert loaded.json()["body"] == "Left knee felt tight after squats."
+
+
+def test_notes_require_matching_user_token(client):
+    _register(client, email="alice@example.com")
+    bob_headers = _register(client, email="bob@example.com")
+
+    response = client.get("/api/users/alice/notes", headers=bob_headers)
+
+    assert response.status_code == 403
 
 
 def test_patch_user_updates_gender_and_age(client):

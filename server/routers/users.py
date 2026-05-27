@@ -2,12 +2,12 @@ from fastapi import APIRouter, Header
 
 from models.schemas import (
     AuthRequest, AuthResponse, ForgotPasswordRequest,
-    RegisterRequest, SecurityQuestionResponse, UserResponse, UserUpdate,
+    NoteResponse, NoteUpdate, RegisterRequest, SecurityQuestionResponse, UserResponse, UserUpdate,
 )
 from services.auth_service import (
     get_security_question, login_user, register_user, require_user_access, reset_password,
 )
-from services.user_service import get_user, update_user
+from services.user_service import get_note, get_user, update_note, update_user
 
 router = APIRouter()
 
@@ -50,3 +50,19 @@ async def patch_user(
 ):
     await require_user_access(username, authorization)
     return await update_user(username, body.gender, body.age)
+
+
+@router.get("/users/{username}/notes", response_model=NoteResponse)
+async def read_note(username: str, authorization: str | None = Header(default=None)):
+    await require_user_access(username, authorization)
+    return await get_note(username)
+
+
+@router.put("/users/{username}/notes", response_model=NoteResponse)
+async def save_note(
+    username: str,
+    body: NoteUpdate,
+    authorization: str | None = Header(default=None),
+):
+    await require_user_access(username, authorization)
+    return await update_note(username, body.body)

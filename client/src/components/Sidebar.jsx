@@ -1,7 +1,7 @@
 import {
   IconHome, IconActivity, IconHistory, IconChart,
   IconSearch, IconChevDown, IconPlus, IconSettings,
-  IconHeart, IconCalendar, IconSparkle, IconMoon, IconSun,
+  IconHeart, IconMoon, IconSun,
 } from '../icons'
 
 function UserAvatarSvg() {
@@ -69,17 +69,13 @@ export default function Sidebar({ page, setPage, sessions, onAddWorkout, usernam
 
       <div className="nav-section">Private</div>
       <ul className="nav-list">
-        <li className="nav-item" style={{ listStyle: 'none' }}>
+        <li
+          className={'nav-item' + (page === 'notes' ? ' active' : '')}
+          onClick={() => setPage('notes')}
+          style={{ listStyle: 'none' }}
+        >
           <span className="ico"><IconHeart /></span>
-          <span>Recovery notes</span>
-        </li>
-        <li className="nav-item" style={{ listStyle: 'none' }}>
-          <span className="ico"><IconCalendar /></span>
-          <span>Training calendar</span>
-        </li>
-        <li className="nav-item" style={{ listStyle: 'none' }}>
-          <span className="ico"><IconSparkle /></span>
-          <span>PRs & milestones</span>
+          <span>Notes</span>
         </li>
       </ul>
 
