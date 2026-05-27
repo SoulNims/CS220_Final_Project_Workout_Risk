@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ShaderBackground from './ui/ShaderBackground'
 
 const SECURITY_QUESTIONS = [
   'What was the name of your high school?',
@@ -74,9 +75,38 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
 
   const cardStyle = {
     background: 'transparent',
-    border: '1px solid var(--border)',
+    border: '1px solid rgba(255, 255, 255, 0.24)',
     borderRadius: 'var(--radius-lg)',
     padding: 32,
+  }
+
+  const pageStyle = {
+    minHeight: '100vh',
+    background: '#090102',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '16px',
+    position: 'relative',
+    overflow: 'hidden',
+    '--bg': '#090102',
+    '--bg-elev': 'rgba(255, 255, 255, 0.08)',
+    '--bg-hover': 'rgba(255, 255, 255, 0.12)',
+    '--border': 'rgba(255, 255, 255, 0.18)',
+    '--border-strong': 'rgba(255, 255, 255, 0.28)',
+    '--text': '#fff7f7',
+    '--text-soft': 'rgba(255, 237, 237, 0.78)',
+    '--text-muted': 'rgba(255, 220, 220, 0.58)',
+    '--accent': '#ef4444',
+    '--accent-soft': 'rgba(239, 68, 68, 0.2)',
+    '--risk-crit': '#fb7185',
+  }
+
+  const contentStyle = {
+    width: '100%',
+    maxWidth: 440,
+    position: 'relative',
+    zIndex: 1,
   }
 
   const logoBlock = (
@@ -97,8 +127,9 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
 
   if (mode === 'forgot-email') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-        <div style={{ width: '100%', maxWidth: 440 }}>
+      <div style={pageStyle}>
+        <ShaderBackground />
+        <div style={contentStyle}>
           {logoBlock}
           <form onSubmit={handleForgotLookup} style={cardStyle}>
             <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600 }}>Reset password</h2>
@@ -136,8 +167,9 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
 
   if (mode === 'forgot-answer') {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-        <div style={{ width: '100%', maxWidth: 440 }}>
+      <div style={pageStyle}>
+        <ShaderBackground />
+        <div style={contentStyle}>
           {logoBlock}
           <form onSubmit={handleForgotReset} style={cardStyle}>
             <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600 }}>Answer your security question</h2>
@@ -188,8 +220,9 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div style={{ width: '100%', maxWidth: 440 }}>
+    <div style={pageStyle}>
+      <ShaderBackground />
+      <div style={contentStyle}>
         {logoBlock}
 
         <form onSubmit={handleSubmit} style={cardStyle}>
