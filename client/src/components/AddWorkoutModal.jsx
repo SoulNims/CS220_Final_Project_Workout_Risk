@@ -214,7 +214,6 @@ export default function AddWorkoutModal({ open, onClose, onSubmit, editing }) {
 
 const OPTIONAL_FIELDS = [
   { key: 'weight', label: 'Weight' },
-  { key: 'reps',   label: 'Reps' },
   { key: 'notes',  label: 'Notes' },
 ]
 
@@ -229,7 +228,7 @@ function MuscleEntryCard({ entry, onChange, onRemove, defaultRpe = 7 }) {
   const showNotes  = activeFields.includes('notes')
   const availableFields = OPTIONAL_FIELDS.filter(f => !activeFields.includes(f.key))
 
-  const avgRpe = setRows.length ? Math.round(setRows.reduce((a, r) => a + (r.rpe || 0), 0) / setRows.length) : 0
+  const avgReps = setRows.length ? Math.round(setRows.reduce((a, r) => a + (r.rpe || 0), 0) / setRows.length) : 0
 
   const updateRow = (i, patch) => onChange({ setRows: setRows.map((r, idx) => idx === i ? { ...r, ...patch } : r) })
   const addRow = () => { const last = setRows[setRows.length - 1] || { rpe: defaultRpe }; onChange({ setRows: [...setRows, { rpe: last.rpe, weight: last.weight, reps: last.reps }] }) }
@@ -244,7 +243,7 @@ function MuscleEntryCard({ entry, onChange, onRemove, defaultRpe = 7 }) {
     onChange(next)
   }
 
-  const rpeAccent = (v) => v >= 8 ? 'var(--risk-crit)' : v >= 6 ? 'var(--risk-high)' : 'var(--risk-mod)'
+  const repsAccent = (v) => v >= 12 ? 'var(--risk-crit)' : v >= 8 ? 'var(--risk-high)' : 'var(--risk-mod)'
 
   const cols = `42px 1fr ${showWeight ? '74px ' : ''}${showReps ? '64px ' : ''}24px`
 
@@ -260,7 +259,7 @@ function MuscleEntryCard({ entry, onChange, onRemove, defaultRpe = 7 }) {
         <span style={{ fontSize: 13.5, fontWeight: 500 }}>{MUSCLE_LABEL[entry.group]}</span>
         <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)', marginLeft: 'auto', display: 'flex', gap: 10 }}>
           <span>{setRows.length} set{setRows.length === 1 ? '' : 's'}</span>
-          <span>avg RPE {avgRpe}</span>
+          <span>avg reps {avgReps}</span>
         </span>
         <button className="btn-icon" onClick={(ev) => { ev.stopPropagation(); onRemove() }} style={{ width: 22, height: 22 }} aria-label="Remove muscle group">
           <IconClose size={11} />
@@ -270,7 +269,7 @@ function MuscleEntryCard({ entry, onChange, onRemove, defaultRpe = 7 }) {
       {expanded && (
         <div style={{ padding: '10px 12px 12px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500, padding: '0 2px 6px', borderBottom: '1px solid var(--border)' }}>
-            <span>Set</span><span>RPE</span>
+            <span>Set</span><span>Reps</span>
             {showWeight && <span>Weight</span>}
             {showReps && <span>Reps</span>}
             <span></span>
@@ -279,7 +278,7 @@ function MuscleEntryCard({ entry, onChange, onRemove, defaultRpe = 7 }) {
           {setRows.map((row, i) => (
             <div key={i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '6px 2px', borderBottom: i === setRows.length - 1 ? 'none' : '1px solid var(--border)' }}>
               <span className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{String(i + 1).padStart(2, '0')}</span>
-              <SetRpe value={row.rpe || defaultRpe} onChange={(v) => updateRow(i, { rpe: v })} accent={rpeAccent(row.rpe || defaultRpe)} />
+              <SetReps value={row.rpe || defaultRpe} onChange={(v) => updateRow(i, { rpe: v })} accent={repsAccent(row.rpe || defaultRpe)} />
               {showWeight && (
                 <input value={row.weight || ''} onChange={(e) => updateRow(i, { weight: e.target.value })} placeholder="—" className="mono" style={smallInput} />
               )}
@@ -340,13 +339,12 @@ const smallInput = {
   fontFamily: 'JetBrains Mono, ui-monospace, monospace', outline: 'none', textAlign: 'center',
 }
 
-function SetRpe({ value, onChange, accent }) {
+function SetReps({ value, onChange, accent }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <button onClick={() => onChange(Math.max(1, value - 1))} style={miniBtn} aria-label="RPE down">−</button>
+      <button onClick={() => onChange(Math.max(1, value - 1))} style={miniBtn} aria-label="Reps down">−</button>
       <span className="mono" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, fontWeight: 600, color: accent }}>{value}</span>
-      <button onClick={() => onChange(Math.min(10, value + 1))} style={miniBtn} aria-label="RPE up">+</button>
-      <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>/ 10</span>
+      <button onClick={() => onChange(Math.min(50, value + 1))} style={miniBtn} aria-label="Reps up">+</button>
     </div>
   )
 }
