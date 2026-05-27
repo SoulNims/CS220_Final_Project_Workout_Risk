@@ -1,6 +1,6 @@
 import {
   IconHome, IconActivity, IconHistory, IconChart,
-  IconSearch, IconChevDown, IconPlus, IconSettings,
+  IconChevDown, IconPlus, IconSettings,
   IconHeart, IconMoon, IconSun,
 } from '../icons'
 
@@ -37,14 +37,6 @@ export default function Sidebar({ page, setPage, sessions, onAddWorkout, usernam
         <div className="ws-mark">{initial}</div>
         <div className="ws-name">{name ? `${name}'s Workspace` : 'Tendon'}</div>
         <IconChevDown size={12} />
-      </div>
-
-      <div style={{ padding: '0 6px 8px' }}>
-        <button className="nav-item" style={{ width: '100%' }}>
-          <span className="ico"><IconSearch /></span>
-          <span style={{ flex: 1, textAlign: 'left' }}>Search</span>
-          <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>⌘K</span>
-        </button>
       </div>
 
       <div className="nav-section">Tendon</div>
