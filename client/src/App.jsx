@@ -41,10 +41,16 @@ export default function App() {
     if (!name) return
     setStatus({ loading: true, error: '' })
     try {
-      const [workouts, riskScores] = await Promise.all([
+      const [workouts, riskScores, user] = await Promise.all([
         api.getWorkouts(name),
         api.getRiskScores(name),
+        api.getUser(name).catch(() => null),
       ])
+      const accountDisplayName = fullName(user)
+      if (accountDisplayName && accountDisplayName !== displayName) {
+        localStorage.setItem('irp_display_name', accountDisplayName)
+        setDisplayName(accountDisplayName)
+      }
       setSessions(workouts.map(apiWorkoutToSession))
       setLoad(riskScoresToLoad(riskScores))
       setStatus({ loading: false, error: '' })
@@ -238,6 +244,7 @@ export default function App() {
               onEditWorkout={onEditWorkout}
               onLogMuscle={onLogMuscle}
               setPage={setPage}
+              displayName={displayName}
             />
           )}
           {page === 'log' && (
