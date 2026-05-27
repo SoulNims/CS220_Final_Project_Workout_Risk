@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Header
 
-from models.schemas import AuthRequest, AuthResponse, RegisterRequest, UserResponse, UserUpdate
-from services.auth_service import login_user, register_user, require_user_access
+from models.schemas import (
+    AuthRequest, AuthResponse, ForgotPasswordRequest,
+    RegisterRequest, SecurityQuestionResponse, UserResponse, UserUpdate,
+)
+from services.auth_service import (
+    get_security_question, login_user, register_user, require_user_access, reset_password,
+)
 from services.user_service import get_user, update_user
 
 router = APIRouter()
@@ -9,7 +14,21 @@ router = APIRouter()
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=201)
 async def register(body: RegisterRequest):
-    return await register_user(body.email, body.password, body.first_name, body.last_name)
+    return await register_user(
+        body.email, body.password, body.first_name, body.last_name,
+        body.security_question, body.security_answer,
+    )
+
+
+@router.get("/auth/security-question/{email:path}", response_model=SecurityQuestionResponse)
+async def security_question(email: str):
+    question = await get_security_question(email)
+    return {"question": question}
+
+
+@router.post("/auth/forgot-password", response_model=AuthResponse)
+async def forgot_password(body: ForgotPasswordRequest):
+    return await reset_password(body.email, body.security_answer, body.new_password)
 
 
 @router.post("/auth/login", response_model=AuthResponse)

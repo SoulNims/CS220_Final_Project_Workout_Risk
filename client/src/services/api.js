@@ -45,6 +45,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  getSecurityQuestion: (username) =>
+    request(`/auth/security-question/${encodeURIComponent(username)}`),
+  forgotPassword: (payload) =>
+    request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getUser: (username) => request(`/users/${username}`),
   createWorkout: (username, payload) =>
     request(`/workouts/${username}`, {

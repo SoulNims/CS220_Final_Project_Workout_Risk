@@ -23,13 +23,15 @@ async def init_db() -> None:
     _client = libsql_client.create_client(url=_URL, auth_token=_TOKEN)
     await _client.batch([
         """CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            email TEXT,
-            first_name TEXT NOT NULL DEFAULT '',
-            last_name TEXT NOT NULL DEFAULT '',
-            password_hash TEXT,
-            gender   TEXT NOT NULL DEFAULT '',
-            age      INTEGER
+            username             TEXT PRIMARY KEY,
+            email                TEXT,
+            first_name           TEXT NOT NULL DEFAULT '',
+            last_name            TEXT NOT NULL DEFAULT '',
+            password_hash        TEXT,
+            gender               TEXT NOT NULL DEFAULT '',
+            age                  INTEGER,
+            security_question    TEXT,
+            security_answer_hash TEXT
         )""",
         """CREATE TABLE IF NOT EXISTS sessions (
             id       TEXT PRIMARY KEY,
@@ -44,27 +46,19 @@ async def init_db() -> None:
         )""",
         "CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username)",
     ])
-    try:
-        await _client.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
-    except Exception:
-        # Column already exists on newer databases.
-        pass
-    try:
-        await _client.execute("ALTER TABLE users ADD COLUMN email TEXT")
-    except Exception:
-        # Column already exists on newer databases.
-        pass
-    try:
-        await _client.execute("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''")
-    except Exception:
-        # Column already exists on newer databases.
-        pass
-    try:
-        await _client.execute("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''")
-    except Exception:
-        # Column already exists on newer databases.
-        pass
-    await _client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+    for migration in [
+        "ALTER TABLE users ADD COLUMN password_hash TEXT",
+        "ALTER TABLE users ADD COLUMN email TEXT",
+        "ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN security_question TEXT",
+        "ALTER TABLE users ADD COLUMN security_answer_hash TEXT",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+    ]:
+        try:
+            await _client.execute(migration)
+        except Exception:
+            pass
 
 
 def row_to_dict(columns, row) -> dict:

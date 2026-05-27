@@ -57,29 +57,48 @@ export default function App() {
     return [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
   }
 
-  async function handleLogin({ email, firstName, lastName, password, mode }) {
+  function _applyAuthResponse(response, emailHint) {
+    const accountName = response.user.username
+    const accountDisplayName = fullName(response.user) || accountName
+    localStorage.setItem('irp_token', response.token)
+    localStorage.setItem('irp_username', accountName)
+    localStorage.setItem('irp_display_name', accountDisplayName)
+    if (response.user?.email || emailHint) localStorage.setItem('irp_email', response.user?.email || emailHint)
+    if (response.user?.gender) localStorage.setItem('irp_gender', response.user.gender)
+    if (response.user?.age != null) localStorage.setItem('irp_age', response.user.age)
+    setUsername(accountName)
+    setDisplayName(accountDisplayName)
+    setGender(response.user?.gender || '')
+    setAge(response.user?.age ?? null)
+  }
+
+  async function handleLogin({ email, firstName, lastName, password, mode, security_question, security_answer }) {
     const cleanEmail = email.trim()
     if (!cleanEmail) return
     setStatus({ loading: true, error: '' })
     try {
       const response = mode === 'register'
-        ? await api.register({ email: cleanEmail, first_name: firstName, last_name: lastName, password })
+        ? await api.register({ email: cleanEmail, first_name: firstName, last_name: lastName, password, security_question, security_answer })
         : await api.login({ email: cleanEmail, password })
-      const accountName = response.user.username
-      const accountDisplayName = fullName(response.user) || accountName
-      localStorage.setItem('irp_token', response.token)
-      localStorage.setItem('irp_username', accountName)
-      localStorage.setItem('irp_display_name', accountDisplayName)
-      if (response.user?.email) localStorage.setItem('irp_email', response.user.email)
-      if (response.user?.gender) localStorage.setItem('irp_gender', response.user.gender)
-      if (response.user?.age != null) localStorage.setItem('irp_age', response.user.age)
-      setUsername(accountName)
-      setDisplayName(accountDisplayName)
-      setGender(response.user?.gender || '')
-      setAge(response.user?.age ?? null)
+      _applyAuthResponse(response, cleanEmail)
       setStatus({ loading: false, error: '' })
     } catch (error) {
       setStatus({ loading: false, error: error.message || 'Unable to reach the API server' })
+    }
+  }
+
+  async function handleForgotPassword({ step, email, security_answer, new_password }) {
+    if (step === 'lookup') {
+      return await api.getSecurityQuestion(email)
+    }
+    setStatus({ loading: true, error: '' })
+    try {
+      const response = await api.forgotPassword({ email, security_answer, new_password })
+      _applyAuthResponse(response, email)
+      setStatus({ loading: false, error: '' })
+    } catch (error) {
+      setStatus({ loading: false, error: '' })
+      throw error
     }
   }
 
@@ -185,7 +204,7 @@ export default function App() {
   }
 
   if (!username) {
-    return <LoginPage onLogin={handleLogin} error={status.error} loading={status.loading} />
+    return <LoginPage onLogin={handleLogin} onForgotPassword={handleForgotPassword} error={status.error} loading={status.loading} />
   }
 
 

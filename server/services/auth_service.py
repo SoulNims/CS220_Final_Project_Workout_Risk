@@ -97,6 +97,10 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
+def _normalize_answer(answer: str) -> str:
+    return answer.strip().lower()
+
+
 def _username_from_email(email: str) -> str:
     prefix = email.split("@", 1)[0]
     username = re.sub(r"[^a-zA-Z0-9_-]+", "-", prefix).strip("-_").lower()
@@ -126,7 +130,10 @@ async def require_user_access(username: str, authorization: str | None) -> None:
         )
 
 
-async def register_user(email: str, password: str, first_name: str, last_name: str) -> dict:
+async def register_user(
+    email: str, password: str, first_name: str, last_name: str,
+    security_question: str, security_answer: str,
+) -> dict:
     clean_email = normalize_email(email)
     clean_first_name = first_name.strip()
     clean_last_name = last_name.strip()
@@ -136,8 +143,15 @@ async def register_user(email: str, password: str, first_name: str, last_name: s
         raise HTTPException(status_code=409, detail="An account already exists for this email.")
     username = await _available_username(clean_email)
     await db.execute(
-        "INSERT INTO users (username, email, first_name, last_name, password_hash, gender, age) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [username, clean_email, clean_first_name, clean_last_name, hash_password(password), "", None],
+        """INSERT INTO users
+               (username, email, first_name, last_name, password_hash, gender, age,
+                security_question, security_answer_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [
+            username, clean_email, clean_first_name, clean_last_name,
+            hash_password(password), "", None,
+            security_question, hash_password(_normalize_answer(security_answer)),
+        ],
     )
     result = await db.execute(
         "SELECT username, email, first_name, last_name, gender, age FROM users WHERE username = ?",
@@ -145,6 +159,48 @@ async def register_user(email: str, password: str, first_name: str, last_name: s
     )
     user = row_to_dict(result.columns, result.rows[0])
     return {"token": create_token(username), "user": user}
+
+
+async def get_security_question(email: str) -> str:
+    db = get_client()
+    result = await db.execute(
+        "SELECT security_question FROM users WHERE email = ?", [normalize_email(email)]
+    )
+    if not result.rows:
+        raise HTTPException(status_code=404, detail="No account found with that email.")
+    question = result.rows[0][0]
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="This account was created before security questions were added and cannot use this flow.",
+        )
+    return question
+
+
+async def reset_password(email: str, security_answer: str, new_password: str) -> dict:
+    clean_email = normalize_email(email)
+    db = get_client()
+    result = await db.execute("SELECT * FROM users WHERE email = ?", [clean_email])
+    if not result.rows:
+        raise HTTPException(status_code=404, detail="No account found with that email.")
+    user = row_to_dict(result.columns, result.rows[0])
+    if not verify_password(_normalize_answer(security_answer), user.get("security_answer_hash")):
+        raise HTTPException(status_code=401, detail="Incorrect answer. Please try again.")
+    await db.execute(
+        "UPDATE users SET password_hash = ? WHERE email = ?",
+        [hash_password(new_password), clean_email],
+    )
+    return {
+        "token": create_token(user["username"]),
+        "user": {
+            "username": user["username"],
+            "email": user.get("email"),
+            "first_name": user.get("first_name", ""),
+            "last_name": user.get("last_name", ""),
+            "gender": user.get("gender", ""),
+            "age": user.get("age"),
+        },
+    }
 
 
 async def login_user(email: str, password: str) -> dict:

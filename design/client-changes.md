@@ -6,6 +6,10 @@
 **What:** what changed and why
 -->
 
+## 2026-05-26 — Security question password reset UI
+**Files:** `client/src/components/LoginPage.jsx`, `client/src/services/api.js`, `client/src/App.jsx`
+**What:** Added forgot-password flow and security question capture on registration. `LoginPage` has a new "Forgot password?" link (login mode only) that opens a two-step flow: (1) enter username → server fetches and displays their security question; (2) enter answer + new password → server verifies and logs you in automatically. Register mode now shows a security question dropdown (4 preset options) and an answer field. `api.js` gained `getSecurityQuestion` and `forgotPassword` helpers. `App.jsx` gained `handleForgotPassword` which is passed to `LoginPage` as `onForgotPassword`; `handleLogin` now forwards `security_question`/`security_answer` on register.
+
 ## 2026-05-26 — Avatar tap-to-log, collapsible Today's workouts, deduplication
 **Files:** `src/App.jsx`, `src/components/Dashboard.jsx`, `src/components/AddWorkoutModal.jsx`
 **What:** Three UX changes: (1) Tapping a muscle on the body avatar now opens the workout modal pre-filled with that muscle. If a session already exists today it opens in edit mode with the new muscle added; otherwise a new session template is created. (2) "Today's workouts" card moved below the avatar/trend grid and is now a collapsible tab — collapsed by default showing muscle pill summary; expanded shows the full grouped list. (3) Sessions with the same workout name are merged into one display row (deduplication), preventing the "9 identical rows" problem. `AddWorkoutModal.isEdit` now checks for a real `id` so pre-filled templates open as "New" not "Edit".

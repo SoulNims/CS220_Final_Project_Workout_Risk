@@ -6,6 +6,10 @@
 **What:** what changed and why
 -->
 
+## 2026-05-26 — Security question password reset
+**Files:** `server/database.py`, `server/models/schemas.py`, `server/services/auth_service.py`, `server/routers/users.py`
+**What:** Added security-question-based password recovery. Two new columns on `users`: `security_question TEXT` and `security_answer_hash TEXT` (answer normalized to lowercase+trimmed before pbkdf2 hashing). `RegisterRequest` replaces `AuthRequest` for `/auth/register` — includes `security_question` and `security_answer` fields. Two new endpoints: `GET /auth/security-question/{username}` returns the stored question without requiring auth; `POST /auth/forgot-password` verifies the answer and returns a fresh token + updates the password. Existing accounts without a security question get a clear 400 error pointing them to contact support.
+
 ## 2026-05-26 — Initial FastAPI backend with SQLite persistence
 **Files:** `server/main.py`, `server/database.py`, `server/models.py`, `server/risk.py`, `server/requirements.txt`
 **What:** Created the FastAPI backend from scratch. Replaced the planned in-memory Python dicts with SQLite for real persistence across server restarts.

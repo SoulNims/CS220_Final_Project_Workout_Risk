@@ -36,11 +36,23 @@ class AuthRequest(BaseModel):
 class RegisterRequest(AuthRequest):
     first_name: str = Field(min_length=1, max_length=60)
     last_name: str = Field(min_length=1, max_length=60)
+    security_question: str = Field(min_length=1, max_length=200)
+    security_answer: str = Field(min_length=1, max_length=200)
 
 
 class AuthResponse(BaseModel):
     token: str
     user: UserResponse
+
+
+class SecurityQuestionResponse(BaseModel):
+    question: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    security_answer: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class UserUpdate(BaseModel):
