@@ -8,7 +8,7 @@ import {
   RISK_LABELS, MUSCLE_LABEL, loadToRisk, formatDate,
 } from '../data'
 
-export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage }) {
+export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditWorkout, onLogMuscle, setPage, displayName }) {
   const score = aggregateScore(load)
   const sl = scoreLabel(score)
 
@@ -32,7 +32,7 @@ export default function Dashboard({ load, sessions, trend, onAddWorkout, onEditW
         <span className="crumb" style={{ color: 'var(--text)' }}>Dashboard</span>
       </div>
 
-      <h1 className="page-title">Good morning.</h1>
+      <h1 className="page-title">Good morning{displayName ? `, ${displayName}` : ''}.</h1>
       <p className="page-subtitle">
         Your last session was yesterday — heavy push day.
       </p>

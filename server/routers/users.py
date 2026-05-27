@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Header
 
-from models.schemas import AuthRequest, AuthResponse, UserResponse, UserUpdate
+from models.schemas import AuthRequest, AuthResponse, RegisterRequest, UserResponse, UserUpdate
 from services.auth_service import login_user, register_user, require_user_access
 from services.user_service import get_user, update_user
 
@@ -8,8 +8,8 @@ router = APIRouter()
 
 
 @router.post("/auth/register", response_model=AuthResponse, status_code=201)
-async def register(body: AuthRequest):
-    return await register_user(body.email, body.password)
+async def register(body: RegisterRequest):
+    return await register_user(body.email, body.password, body.first_name, body.last_name)
 
 
 @router.post("/auth/login", response_model=AuthResponse)

@@ -8,7 +8,12 @@ def test_root_returns_welcome_message(client):
 def _register(client, email="alice@example.com", password="password123"):
     response = client.post(
         "/api/auth/register",
-        json={"email": email, "password": password},
+        json={
+            "email": email,
+            "first_name": "Alice",
+            "last_name": "Runner",
+            "password": password,
+        },
     )
     token = response.json()["token"]
     return {"Authorization": f"Bearer {token}"}
@@ -17,7 +22,12 @@ def _register(client, email="alice@example.com", password="password123"):
 def test_register_creates_user_and_token(client):
     response = client.post(
         "/api/auth/register",
-        json={"email": "alice@example.com", "password": "password123"},
+        json={
+            "email": "alice@example.com",
+            "first_name": "Alice",
+            "last_name": "Runner",
+            "password": "password123",
+        },
     )
 
     assert response.status_code == 201
@@ -25,6 +35,8 @@ def test_register_creates_user_and_token(client):
     assert body["token"]
     assert body["user"]["username"] == "alice"
     assert body["user"]["email"] == "alice@example.com"
+    assert body["user"]["first_name"] == "Alice"
+    assert body["user"]["last_name"] == "Runner"
 
 
 def test_login_returns_token_for_existing_user(client):
@@ -53,6 +65,8 @@ def test_get_user_returns_authenticated_user(client):
     assert response.status_code == 200
     body = response.json()
     assert body["username"] == "alice"
+    assert body["first_name"] == "Alice"
+    assert body["last_name"] == "Runner"
     assert "gender" in body
 
 
@@ -61,7 +75,12 @@ def test_register_existing_user_is_rejected(client):
 
     response = client.post(
         "/api/auth/register",
-        json={"email": "alice@example.com", "password": "password123"},
+        json={
+            "email": "alice@example.com",
+            "first_name": "Alice",
+            "last_name": "Runner",
+            "password": "password123",
+        },
     )
 
     assert response.status_code == 409

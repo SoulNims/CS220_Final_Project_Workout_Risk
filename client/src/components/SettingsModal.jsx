@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function SettingsModal({ open, username, gender, age, onSave, onClose, onLogout }) {
+export default function SettingsModal({ open, username, displayName, gender, age, onSave, onClose, onLogout }) {
   const [localGender, setLocalGender] = useState(gender || '')
   const [localAge, setLocalAge] = useState(age || '')
 
@@ -29,7 +29,7 @@ export default function SettingsModal({ open, username, gender, age, onSave, onC
 
         <div style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0, marginBottom: 4 }}>Settings</h2>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>{username}</p>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>{displayName || username}</p>
         </div>
 
         {/* Age */}

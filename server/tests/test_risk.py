@@ -6,7 +6,7 @@ TODAY = datetime.date.today().isoformat()
 def _create_user(client, username="alice"):
     response = client.post(
         "/api/auth/register",
-        json={"email": f"{username}@example.com", "password": "password123"},
+        json={"email": f"{username}@example.com", "first_name": username.title(), "last_name": "Tester", "password": "password123"},
     )
     return {"Authorization": f"Bearer {response.json()['token']}"}
 

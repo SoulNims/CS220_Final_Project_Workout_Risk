@@ -2,6 +2,8 @@ import { useState } from 'react'
 
 export default function LoginPage({ onLogin, error: serverError, loading }) {
   const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState('login')
   const [error, setError] = useState('')
@@ -10,8 +12,10 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
     e.preventDefault()
     if (!email.trim()) { setError('Please enter an email'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Please enter a valid email'); return }
+    if (mode === 'register' && !firstName.trim()) { setError('Please enter your first name'); return }
+    if (mode === 'register' && !lastName.trim()) { setError('Please enter your last name'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
-    onLogin({ email: email.trim(), password, mode })
+    onLogin({ email: email.trim(), firstName: firstName.trim(), lastName: lastName.trim(), password, mode })
   }
 
   return (
@@ -50,6 +54,33 @@ export default function LoginPage({ onLogin, error: serverError, loading }) {
               Create account
             </button>
           </div>
+
+          {mode === 'register' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 22 }}>
+              <div>
+                <label className="label">First name</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={e => setFirstName(e.target.value)}
+                  placeholder="First name"
+                  className="input"
+                  autoComplete="given-name"
+                />
+              </div>
+              <div>
+                <label className="label">Last name</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
+                  placeholder="Last name"
+                  className="input"
+                  autoComplete="family-name"
+                />
+              </div>
+            </div>
+          )}
 
           <div style={{ marginBottom: 22 }}>
             <label className="label">Email</label>

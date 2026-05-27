@@ -25,6 +25,8 @@ async def init_db() -> None:
         """CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             email TEXT,
+            first_name TEXT NOT NULL DEFAULT '',
+            last_name TEXT NOT NULL DEFAULT '',
             password_hash TEXT,
             gender   TEXT NOT NULL DEFAULT '',
             age      INTEGER
@@ -49,6 +51,16 @@ async def init_db() -> None:
         pass
     try:
         await _client.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except Exception:
+        # Column already exists on newer databases.
+        pass
+    try:
+        await _client.execute("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''")
+    except Exception:
+        # Column already exists on newer databases.
+        pass
+    try:
+        await _client.execute("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''")
     except Exception:
         # Column already exists on newer databases.
         pass

@@ -3,10 +3,20 @@ from database import get_client, row_to_dict
 
 async def get_user(username: str) -> dict:
     db = get_client()
-    result = await db.execute("SELECT username, email, gender, age FROM users WHERE username = ?", [username])
+    result = await db.execute(
+        "SELECT username, email, first_name, last_name, gender, age FROM users WHERE username = ?",
+        [username],
+    )
     if result.rows:
         return row_to_dict(result.columns, result.rows[0])
-    return {"username": username, "email": None, "gender": "", "age": None}
+    return {
+        "username": username,
+        "email": None,
+        "first_name": "",
+        "last_name": "",
+        "gender": "",
+        "age": None,
+    }
 
 
 async def update_user(username: str, gender: str | None, age: int | None) -> dict:

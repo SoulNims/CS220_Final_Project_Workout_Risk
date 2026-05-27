@@ -126,18 +126,23 @@ async def require_user_access(username: str, authorization: str | None) -> None:
         )
 
 
-async def register_user(email: str, password: str) -> dict:
+async def register_user(email: str, password: str, first_name: str, last_name: str) -> dict:
     clean_email = normalize_email(email)
+    clean_first_name = first_name.strip()
+    clean_last_name = last_name.strip()
     db = get_client()
     existing = await db.execute("SELECT username FROM users WHERE email = ?", [clean_email])
     if existing.rows:
         raise HTTPException(status_code=409, detail="An account already exists for this email.")
     username = await _available_username(clean_email)
     await db.execute(
-        "INSERT INTO users (username, email, password_hash, gender, age) VALUES (?, ?, ?, ?, ?)",
-        [username, clean_email, hash_password(password), "", None],
+        "INSERT INTO users (username, email, first_name, last_name, password_hash, gender, age) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [username, clean_email, clean_first_name, clean_last_name, hash_password(password), "", None],
     )
-    result = await db.execute("SELECT username, email, gender, age FROM users WHERE username = ?", [username])
+    result = await db.execute(
+        "SELECT username, email, first_name, last_name, gender, age FROM users WHERE username = ?",
+        [username],
+    )
     user = row_to_dict(result.columns, result.rows[0])
     return {"token": create_token(username), "user": user}
 
@@ -156,6 +161,8 @@ async def login_user(email: str, password: str) -> dict:
         "user": {
             "username": user["username"],
             "email": user.get("email"),
+            "first_name": user.get("first_name", ""),
+            "last_name": user.get("last_name", ""),
             "gender": user.get("gender", ""),
             "age": user.get("age"),
         },

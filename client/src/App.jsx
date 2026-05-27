@@ -15,6 +15,7 @@ export default function App() {
   const [username, setUsername] = useState(() =>
     localStorage.getItem('irp_token') ? localStorage.getItem('irp_username') || '' : ''
   )
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem('irp_display_name') || '')
   const [gender, setGender] = useState(() => localStorage.getItem('irp_gender') || '')
   const [age, setAge] = useState(() => localStorage.getItem('irp_age') ? parseInt(localStorage.getItem('irp_age'), 10) : null)
   const [theme, setTheme] = useState(() => localStorage.getItem('irp_theme') || 'light')
@@ -52,21 +53,28 @@ export default function App() {
     }
   }
 
-  async function handleLogin({ email, password, mode }) {
+  function fullName(user) {
+    return [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim()
+  }
+
+  async function handleLogin({ email, firstName, lastName, password, mode }) {
     const cleanEmail = email.trim()
     if (!cleanEmail) return
     setStatus({ loading: true, error: '' })
     try {
       const response = mode === 'register'
-        ? await api.register({ email: cleanEmail, password })
+        ? await api.register({ email: cleanEmail, first_name: firstName, last_name: lastName, password })
         : await api.login({ email: cleanEmail, password })
       const accountName = response.user.username
+      const accountDisplayName = fullName(response.user) || accountName
       localStorage.setItem('irp_token', response.token)
       localStorage.setItem('irp_username', accountName)
+      localStorage.setItem('irp_display_name', accountDisplayName)
       if (response.user?.email) localStorage.setItem('irp_email', response.user.email)
       if (response.user?.gender) localStorage.setItem('irp_gender', response.user.gender)
       if (response.user?.age != null) localStorage.setItem('irp_age', response.user.age)
       setUsername(accountName)
+      setDisplayName(accountDisplayName)
       setGender(response.user?.gender || '')
       setAge(response.user?.age ?? null)
       setStatus({ loading: false, error: '' })
@@ -83,10 +91,12 @@ export default function App() {
   function handleLogout() {
     localStorage.removeItem('irp_token')
     localStorage.removeItem('irp_username')
+    localStorage.removeItem('irp_display_name')
     localStorage.removeItem('irp_email')
     localStorage.removeItem('irp_gender')
     localStorage.removeItem('irp_age')
     setUsername('')
+    setDisplayName('')
     setGender('')
     setAge(null)
     setLoad({})
@@ -187,6 +197,7 @@ export default function App() {
         sessions={sessions}
         onAddWorkout={onAddWorkout}
         username={username}
+        displayName={displayName}
         theme={theme}
         toggleTheme={toggleTheme}
         onOpenSettings={() => setShowSettings(true)}
@@ -225,6 +236,7 @@ export default function App() {
               sessions={sessions}
               trend={TREND}
               username={username}
+              displayName={displayName}
             />
           )}
         </div>
@@ -275,6 +287,7 @@ export default function App() {
       <SettingsModal
         open={showSettings}
         username={username}
+        displayName={displayName}
         gender={gender}
         age={age}
         onSave={handleSaveSettings}

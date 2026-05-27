@@ -22,6 +22,8 @@ RiskLevel = Literal["none", "low", "mod", "high", "crit"]
 class UserResponse(BaseModel):
     username: str
     email: Optional[str] = None
+    first_name: str = ""
+    last_name: str = ""
     gender: str
     age: Optional[int] = None
 
@@ -29,6 +31,11 @@ class UserResponse(BaseModel):
 class AuthRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     password: str = Field(min_length=8, max_length=128)
+
+
+class RegisterRequest(AuthRequest):
+    first_name: str = Field(min_length=1, max_length=60)
+    last_name: str = Field(min_length=1, max_length=60)
 
 
 class AuthResponse(BaseModel):

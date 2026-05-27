@@ -20,7 +20,7 @@ function UserAvatarSvg() {
   )
 }
 
-export default function Sidebar({ page, setPage, sessions, onAddWorkout, username, theme, toggleTheme, onOpenSettings }) {
+export default function Sidebar({ page, setPage, sessions, onAddWorkout, username, displayName, theme, toggleTheme, onOpenSettings }) {
   const items = [
     { id: 'dashboard', label: 'Dashboard',  icon: IconHome },
     { id: 'log',       label: 'Workouts',   icon: IconActivity, count: sessions.length },
@@ -28,13 +28,14 @@ export default function Sidebar({ page, setPage, sessions, onAddWorkout, usernam
     { id: 'insights',  label: 'Insights',   icon: IconChart },
   ]
 
-  const initial = username ? username[0].toUpperCase() : 'T'
+  const name = displayName || username
+  const initial = name ? name[0].toUpperCase() : 'T'
 
   return (
     <aside className="sidebar">
       <div className="ws-header">
         <div className="ws-mark">{initial}</div>
-        <div className="ws-name">{username ? `${username}'s Workspace` : 'Tendon'}</div>
+        <div className="ws-name">{name ? `${name}'s Workspace` : 'Tendon'}</div>
         <IconChevDown size={12} />
       </div>
 
@@ -105,7 +106,7 @@ export default function Sidebar({ page, setPage, sessions, onAddWorkout, usernam
           <UserAvatarSvg />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="user-name">{username || 'Athlete'}</div>
+          <div className="user-name">{name || 'Athlete'}</div>
           <div className="user-sub">CS 220 · Spring 26</div>
         </div>
         <IconChevDown size={12} />
