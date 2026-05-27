@@ -74,9 +74,12 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
   }
 
   const cardStyle = {
-    background: 'transparent',
-    border: '1px solid rgba(255, 255, 255, 0.24)',
+    background: 'rgba(16, 2, 2, 0.38)',
+    border: '1px solid rgba(255, 255, 255, 0.28)',
     borderRadius: 'var(--radius-lg)',
+    boxShadow: '0 24px 80px rgba(0, 0, 0, 0.46)',
+    backdropFilter: 'blur(18px) saturate(130%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(130%)',
     padding: 32,
   }
 
@@ -118,7 +121,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error: serverErro
         fontFamily: 'Fraunces, serif', fontWeight: 600, fontSize: 22,
         letterSpacing: '-0.02em',
       }}>T</div>
-      <h1 className="page-title" style={{ fontSize: 32, marginBottom: 8 }}>Tendon</h1>
+      <h1 className="page-title" style={{ fontSize: 32, marginBottom: 8, color: '#ffffff' }}>Tendon</h1>
       <p style={{ color: 'var(--text-soft)', fontSize: 15, margin: 0 }}>
         Track your training. Protect your body.
       </p>
